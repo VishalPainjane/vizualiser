@@ -1,0 +1,341 @@
+/* 
+ * Saved Models Panel - Oldskool Wireframe Design
+ */
+
+.overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.panel {
+  width: 90%;
+  max-width: 600px;
+  max-height: 80vh;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-primary);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: slideUp 0.3s ease-out;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-md) var(--space-lg);
+  border-bottom: 1px dashed var(--border-secondary);
+}
+
+.title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+}
+
+.title span {
+  color: var(--accent-primary);
+  font-size: 12px;
+}
+
+.closeBtn {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid var(--border-secondary);
+  color: var(--text-primary);
+  font-size: 16px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.closeBtn:hover {
+  border-color: var(--error);
+  color: var(--error);
+}
+
+.content {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-md);
+}
+
+/* Loading State */
+.loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-md);
+  padding: var(--space-xl);
+  color: var(--text-primary);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.spinner {
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--border-secondary);
+  border-top-color: var(--accent-primary);
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.miniSpinner {
+  width: 16px;
+  height: 16px;
+  border: 1px solid var(--border-secondary);
+  border-top-color: var(--accent-primary);
+  animation: spin 1s linear infinite;
+}
+
+/* Error State */
+.error {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-md);
+  border: 1px solid var(--error);
+  color: var(--error);
+  font-size: 11px;
+}
+
+.error button {
+  margin-left: auto;
+  padding: 4px 12px;
+  background: transparent;
+  border: 1px solid var(--error);
+  color: var(--error);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.error button:hover {
+  background: var(--error);
+  color: var(--bg-primary);
+}
+
+/* Empty State */
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-xl);
+  text-align: center;
+  color: var(--text-primary);
+}
+
+.emptyIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 80px;
+  height: 80px;
+  border: 1px dashed var(--border-secondary);
+  margin-bottom: var(--space-md);
+  font-size: 11px;
+  color: var(--text-primary);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.emptyIcon::after {
+  content: 'EMPTY';
+}
+
+.empty p {
+  margin: 0;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.emptyHint {
+  font-size: 10px !important;
+  color: var(--text-primary);
+  margin-top: var(--space-sm) !important;
+  text-transform: none !important;
+  letter-spacing: 0 !important;
+}
+
+/* Model List */
+.modelList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.modelCard {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-md);
+  background: transparent;
+  border: 1px solid var(--border-secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.modelCard:hover {
+  border-color: var(--accent-primary);
+  background: var(--accent-dim);
+}
+
+.modelIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: 1px dashed var(--border-primary);
+  color: var(--accent-primary);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 1px;
+}
+
+.modelIcon::after {
+  content: 'NN';
+}
+
+.modelInfo {
+  flex: 1;
+  min-width: 0;
+}
+
+.modelName {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.modelMeta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  font-size: 10px;
+  color: var(--text-primary);
+  margin-top: 4px;
+}
+
+.framework {
+  padding: 2px 6px;
+  border: 1px solid var(--border-primary);
+  color: var(--accent-primary);
+  font-size: 9px;
+  text-transform: uppercase;
+}
+
+.separator {
+  color: var(--text-primary);
+}
+
+.modelDate {
+  font-size: 10px;
+  color: var(--text-primary);
+  margin-top: 4px;
+}
+
+.modelActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.loadBtn,
+.deleteBtn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  background: transparent;
+  border: 1px solid var(--border-secondary);
+  color: var(--text-primary);
+  font-size: 10px;
+  font-family: var(--font-mono);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btnIcon {
+  font-size: 8px;
+  line-height: 1;
+}
+
+.loadBtn {
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
+}
+
+.loadBtn:hover {
+  background: var(--accent-primary);
+  color: var(--bg-primary);
+}
+
+.deleteBtn {
+  border-color: var(--border-secondary);
+  color: var(--text-primary);
+}
+
+.deleteBtn:hover {
+  border-color: var(--error);
+  color: var(--error);
+  background: rgba(255, 82, 82, 0.1);
+}
+
+.deleteBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
