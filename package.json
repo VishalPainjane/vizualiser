@@ -1,0 +1,53 @@
+{
+  "name": "nn3d-visualizer",
+  "version": "1.0.0",
+  "description": "3D Deep Learning Model Visualizer - Interactive WebGL visualization of neural network architectures",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "lint": "eslint src --ext .ts,.tsx",
+    "test": "vitest",
+    "validate-schema": "ajv validate -s src/schema/nn3d.schema.json -d"
+  },
+  "dependencies": {
+    "@react-three/drei": "^9.92.7",
+    "@react-three/fiber": "^8.15.12",
+    "ajv": "^8.12.0",
+    "d3-force-3d": "^3.0.5",
+    "h5wasm": "^0.7.5",
+    "leva": "^0.9.35",
+    "onnxruntime-web": "^1.16.3",
+    "pako": "^2.1.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "three": "^0.160.0",
+    "zustand": "^4.4.7"
+  },
+  "devDependencies": {
+    "@types/node": "^25.0.3",
+    "@types/pako": "^2.0.4",
+    "@types/react": "^18.2.45",
+    "@types/react-dom": "^18.2.18",
+    "@types/three": "^0.160.0",
+    "@typescript-eslint/eslint-plugin": "^6.16.0",
+    "@typescript-eslint/parser": "^6.16.0",
+    "@vitejs/plugin-react": "^4.2.1",
+    "eslint": "^8.56.0",
+    "typescript": "^5.3.3",
+    "vite": "^5.0.10",
+    "vitest": "^1.1.0"
+  },
+  "keywords": [
+    "neural-network",
+    "deep-learning",
+    "visualization",
+    "3d",
+    "threejs",
+    "webgl",
+    "machine-learning"
+  ],
+  "author": "",
+  "license": "MIT"
+}
