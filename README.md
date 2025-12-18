@@ -1,72 +1,62 @@
-# 3D Deep Learning Model Visualizer
+<div align="center">
 
-<p align="center">
-  <img src="docs/preview.png" alt="Visualizer Preview" width="600"/>
-</p>
+<img src="docs/preview.png" width="100%" alt="Vizualiser - 3D Neural Network Architecture Visualization">
 
-<p align="center">
-  <a href="https://github.com/VishalPainjane/vizualiser/stargazers"><img src="https://img.shields.io/github/stars/VishalPainjane/vizualiser?style=for-the-badge&color=gold" alt="Stars"></a>
-  <a href="https://github.com/VishalPainjane/vizualiser/actions"><img src="https://img.shields.io/github/actions/workflow/status/VishalPainjane/vizualiser/ci.yml?style=for-the-badge" alt="Build Status"></a>
-  <a href="https://github.com/VishalPainjane/vizualiser/blob/main/LICENSE"><img src="https://img.shields.io/github/license/VishalPainjane/vizualiser?style=for-the-badge" alt="License"></a>
-  <a href="https://discord.gg/xyz123"><img src="https://img.shields.io/discord/123456789?style=for-the-badge&color=7289da&label=chat" alt="Discord"></a>
-  <a href="https://github.com/sponsors/VishalPainjane"><img src="https://img.shields.io/badge/sponsor-%E2%9D%A4-lightgrey?style=for-the-badge" alt="Sponsor"></a>
-</p>
+<br />
+<br />
+<!--
+[![Featured on Product Hunt](https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=346331&theme=light)](https://www.producthunt.com/posts/vizualiser)
+[![Top Post Badge](https://api.producthunt.com/widgets/embed-image/v1/top-post-badge.svg?post_id=346331&theme=light&period=daily)](https://www.producthunt.com/posts/vizualiser)
+-->
+<br />
 
-<p align="center">
-  <b>Explore, analyze, and share neural network architectures in stunning 3D.</b><br>
-  <i>The most popular open-source 3D neural network visualizer, trusted by researchers, educators, and ML engineers worldwide.</i>
-</p>
+[![GitHub stars](https://img.shields.io/github/stars/VishalPainjane/vizualiser?style=flat-square&logo=github&color=yellow)](https://github.com/VishalPainjane/vizualiser/stargazers)
+<!-- [![GitHub forks](https://img.shields.io/github/forks/VishalPainjane/vizualiser?style=flat-square&logo=github&color=blue)](https://github.com/VishalPainjane/vizualiser/network/members) -->
+[![GitHub watchers](https://img.shields.io/github/watchers/VishalPainjane/vizualiser?style=flat-square&logo=github)](https://github.com/VishalPainjane/vizualiser/watchers)
+[![GitHub contributors](https://img.shields.io/github/contributors/VishalPainjane/vizualiser?color=blue&style=flat-square&logo=github)](https://github.com/VishalPainjane/vizualiser/graphs/contributors)
+[![GitHub last commit](https://img.shields.io/github/last-commit/VishalPainjane/vizualiser?color=blue&style=flat-square&logo=github)](https://github.com/VishalPainjane/vizualiser/commits/main)
+[![GitHub license](https://img.shields.io/github/license/VishalPainjane/vizualiser?color=blue&style=flat-square)](LICENSE)
+[![GitHub closed issues](https://img.shields.io/github/issues-closed/VishalPainjane/vizualiser?color=blue&style=flat-square&logo=github)](https://github.com/VishalPainjane/vizualiser/issues?q=is%3Aissue+is%3Aclosed)
+[![GitHub closed pull requests](https://img.shields.io/github/issues-pr-closed/VishalPainjane/vizualiser?color=blue&style=flat-square&logo=github)](https://github.com/VishalPainjane/vizualiser/pulls?q=is%3Apr+is%3Aclosed)
+<!-- 
+[![npm version](https://img.shields.io/npm/v/vizualiser?style=flat-square&logo=npm&color=red)](https://www.npmjs.com/package/vizualiser)
+[![npm downloads](https://img.shields.io/npm/dm/vizualiser?style=flat-square&logo=npm&color=red)](https://www.npmjs.com/package/vizualiser)
+[![Docker Pulls](https://img.shields.io/docker/pulls/vizualiser/vizualiser?style=flat-square&logo=docker&color=blue)](https://hub.docker.com/r/vizualiser/vizualiser)
+[![Build Status](https://img.shields.io/github/actions/workflow/status/VishalPainjane/vizualiser/ci.yml?style=flat-square&logo=github-actions)](https://github.com/VishalPainjane/vizualiser/actions)
+[![Code Coverage](https://img.shields.io/codecov/c/github/VishalPainjane/vizualiser?style=flat-square&logo=codecov)](https://codecov.io/gh/VishalPainjane/vizualiser)
+[![Code Quality](https://img.shields.io/codacy/grade/abc123?style=flat-square&logo=codacy)](https://www.codacy.com/app/vizualiser/vizualiser)
 
----
+[![Discord](https://img.shields.io/discord/123456789?style=flat-square&logo=discord&label=Discord&color=7289da)](https://discord.gg/vizualiser)
+[![Twitter Follow](https://img.shields.io/twitter/follow/vizualiser?style=flat-square&logo=twitter&color=1DA1F2)](https://twitter.com/vizualiser)
+[![YouTube Channel Subscribers](https://img.shields.io/youtube/channel/subscribers/UC123?style=flat-square&logo=youtube&color=red)](https://youtube.com/@vizualiser)
+[![Reddit](https://img.shields.io/reddit/subreddit-subscribers/vizualiser?style=flat-square&logo=reddit&color=FF4500)](https://reddit.com/r/vizualiser) -->
 
-<p align="center">
-  <a href="#live-demo">Live Demo</a> •
-  <a href="#showcase">Showcase</a> •
-  <a href="#features">Features</a> •
-  <a href="#getting-started">Getting Started</a> •
-  <a href="#community">Community</a>
-</p>
+</div>
 
----
+<br />
 
-<p align="center">
-  <img src="https://img.shields.io/badge/used%20by-100,000%2B%20projects-blue?style=flat-square" alt="Used by">
-  <img src="https://img.shields.io/badge/contributors-500%2B-brightgreen?style=flat-square" alt="Contributors">
-  <img src="https://img.shields.io/badge/PRs-welcome-orange?style=flat-square" alt="PRs Welcome">
-</p>
+## 3D Neural Network Architecture Visualizer
 
----
+Vizualiser is an open-source platform for visualizing, analyzing, and understanding deep learning architectures in stunning 3D. This is a professional tool for inspecting model structure, layer parametrization, and inter-layer connectivity. It focuses on clarity, accuracy, and performance rendering large architectures while keeping interactive frame rates on modern hardware.
 
-<h2 align="center" id="live-demo">🚀 <a href="https://vizualiser-demo.example.com">Live Demo</a></h2>
+<div align="center">
+
+**[Live Demo](https://vizualiser.ai/demo)** |
+**[Documentation](https://docs.vizualiser.ai)** |
+**[Gallery](https://vizualiser.ai/gallery)** |
+**[API Reference](https://api.vizualiser.ai)** |
+**[Discord Community](https://discord.gg/vizualiser)**
+
+</div>
 
 ---
 
 ## 🌟 Why Vizualiser?
 
-- **200k+ GitHub stars** — The most starred 3D neural network visualizer
-- **Blazing fast** — GPU-accelerated, real-time rendering for massive models
-- **Plug & Play** — Drag and drop, or integrate with your ML pipeline
-- **Open ecosystem** — Exporters, plugins, and a thriving community
-- **Beautiful** — Publication-ready visuals and dark/light themes
-
----
-
-## 🏆 Showcase
-
-<details>
-<summary>Click to see amazing models visualized by the community</summary>
-
-<p align="center">
-  <img src="docs/showcase1.png" width="350"/>
-  <img src="docs/showcase2.png" width="350"/>
-  <img src="docs/showcase3.png" width="350"/>
-</p>
-
-> "Vizualiser made it possible to debug and present our transformer models to non-technical stakeholders!" — <i>ML Researcher, Google Brain</i>
-
-> "A must-have for every deep learning course." — <i>Professor, MIT</i>
-
-</details>
+- **Blazing fast** - GPU-accelerated, real-time rendering for massive models
+- **Plug & Play** - Drag and drop, or integrate with your ML pipeline
+- **Open ecosystem** - Exporters, plugins, and a thriving community
+- **Beautiful** - Publication-ready visuals and dark/light themes
 
 ---
 
@@ -372,10 +362,6 @@ MIT License - see [LICENSE](LICENSE) for details.
 
 ---
 
-## 🙏 Acknowledgments
-
----
-
 ## 🌍 Community & Support
 
 - [Discussions](https://github.com/VishalPainjane/vizualiser/discussions)
@@ -388,16 +374,7 @@ MIT License - see [LICENSE](LICENSE) for details.
 
 <p align="center">
   <a href="https://github.com/sponsors/VishalPainjane"><img src="https://img.shields.io/badge/sponsor%20us-on%20GitHub-orange?style=for-the-badge" alt="Sponsor"></a>
-  <a href="https://opencollective.com/vizualiser"><img src="https://opencollective.com/vizualiser/tiers/backer/badge.svg?style=for-the-badge" alt="OpenCollective"></a>
 </p>
-
-<details>
-<summary>Our amazing sponsors</summary>
-
-<p align="center">
-  <img src="https://opencollective.com/vizualiser/tiers/backer.svg?avatarHeight=36" alt="Sponsors">
-</p>
-</details>
 
 ---
 
@@ -408,3 +385,6 @@ MIT License - see [LICENSE](LICENSE) for details.
 - [Three.js](https://threejs.org/) for 3D rendering
 - [React Three Fiber](https://docs.pmnd.rs/react-three-fiber/) for React integration
 - [Drei](https://github.com/pmndrs/drei) for useful 3D helpers
+
+
+
