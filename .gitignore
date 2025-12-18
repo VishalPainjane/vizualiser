@@ -1,0 +1,44 @@
+# Node / build
+node_modules/
+dist/
+build/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+venv/
+.venv/
+backend/venv/
+
+# Editor/project files
+.vscode/
+.idea/
+.DS_Store
+
+# envs and secrets
+.env
+env/
+
+# Logs
+*.log
+
+# OS files
+Thumbs.db
+node_modules/
+dist/
+.DS_Store
+*.local
+*.log
+.env
+.env.*
+!.env.example
+coverage/
+.nyc_output/
+*.egg-info/
+__pycache__/
+*.pyc
+.pytest_cache/
+build/
+*.nn3d.bak
