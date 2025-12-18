@@ -1,0 +1,60 @@
+# Docker Compose for NN3D Visualizer
+# Run: docker-compose up --build
+
+version: '3.8'
+
+services:
+  # FastAPI Backend - Model Analysis
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: nn3d-backend
+    restart: unless-stopped
+    volumes:
+      # Persist database
+      - nn3d-data:/app/data
+      # Mount models directory for local model files (optional)
+      - ./samples:/app/samples:ro
+    environment:
+      - DATABASE_PATH=/app/data/models.db
+      - PYTHONUNBUFFERED=1
+    ports:
+      - "8000:8000"
+    networks:
+      - nn3d-network
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # React Frontend - 3D Visualization
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: nn3d-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - nn3d-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:80/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+
+networks:
+  nn3d-network:
+    driver: bridge
+
+volumes:
+  nn3d-data:
+    driver: local
