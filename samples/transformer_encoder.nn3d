@@ -1,0 +1,220 @@
+{
+  "version": "1.0.0",
+  "metadata": {
+    "name": "Transformer Encoder",
+    "description": "A Transformer encoder block for sequence modeling",
+    "framework": "pytorch",
+    "created": "2024-12-17T10:00:00Z",
+    "tags": ["transformer", "attention", "nlp", "encoder"],
+    "inputShape": [1, 512, 768],
+    "outputShape": [1, 512, 768],
+    "totalParams": 7087872,
+    "trainableParams": 7087872
+  },
+  "graph": {
+    "nodes": [
+      {
+        "id": "input",
+        "type": "input",
+        "name": "Input Embeddings",
+        "outputShape": [1, 512, 768],
+        "depth": 0
+      },
+      {
+        "id": "pos_embed",
+        "type": "embedding",
+        "name": "Positional Embedding",
+        "params": {
+          "numEmbeddings": 512,
+          "embeddingDim": 768
+        },
+        "inputShape": [1, 512],
+        "outputShape": [1, 512, 768],
+        "depth": 1
+      },
+      {
+        "id": "embed_add",
+        "type": "add",
+        "name": "Add Position",
+        "inputShape": [1, 512, 768],
+        "outputShape": [1, 512, 768],
+        "depth": 2
+      },
+      {
+        "id": "layer1_ln1",
+        "type": "layerNorm",
+        "name": "LayerNorm 1",
+        "params": {
+          "eps": 1e-6
+        },
+        "inputShape": [1, 512, 768],
+        "outputShape": [1, 512, 768],
+        "depth": 3,
+        "group": "encoder_layer_1"
+      },
+      {
+        "id": "layer1_mha",
+        "type": "multiHeadAttention",
+        "name": "Multi-Head Attention",
+        "params": {
+          "numHeads": 12,
+          "hiddenSize": 768,
+          "dropoutRate": 0.1
+        },
+        "inputShape": [1, 512, 768],
+        "outputShape": [1, 512, 768],
+        "depth": 4,
+        "group": "encoder_layer_1"
+      },
+      {
+        "id": "layer1_dropout1",
+        "type": "dropout",
+        "name": "Dropout",
+        "params": {
+          "dropoutRate": 0.1
+        },
+        "inputShape": [1, 512, 768],
+        "outputShape": [1, 512, 768],
+        "depth": 5,
+        "group": "encoder_layer_1"
+      },
+      {
+        "id": "layer1_add1",
+        "type": "add",
+        "name": "Residual Add 1",
+        "inputShape": [1, 512, 768],
+        "outputShape": [1, 512, 768],
+        "depth": 6,
+        "group": "encoder_layer_1"
+      },
+      {
+        "id": "layer1_ln2",
+        "type": "layerNorm",
+        "name": "LayerNorm 2",
+        "params": {
+          "eps": 1e-6
+        },
+        "inputShape": [1, 512, 768],
+        "outputShape": [1, 512, 768],
+        "depth": 7,
+        "group": "encoder_layer_1"
+      },
+      {
+        "id": "layer1_ff1",
+        "type": "linear",
+        "name": "Feed Forward 1",
+        "params": {
+          "inFeatures": 768,
+          "outFeatures": 3072,
+          "bias": true
+        },
+        "inputShape": [1, 512, 768],
+        "outputShape": [1, 512, 3072],
+        "depth": 8,
+        "group": "encoder_layer_1"
+      },
+      {
+        "id": "layer1_gelu",
+        "type": "gelu",
+        "name": "GELU",
+        "inputShape": [1, 512, 3072],
+        "outputShape": [1, 512, 3072],
+        "depth": 9,
+        "group": "encoder_layer_1"
+      },
+      {
+        "id": "layer1_ff2",
+        "type": "linear",
+        "name": "Feed Forward 2",
+        "params": {
+          "inFeatures": 3072,
+          "outFeatures": 768,
+          "bias": true
+        },
+        "inputShape": [1, 512, 3072],
+        "outputShape": [1, 512, 768],
+        "depth": 10,
+        "group": "encoder_layer_1"
+      },
+      {
+        "id": "layer1_dropout2",
+        "type": "dropout",
+        "name": "Dropout",
+        "params": {
+          "dropoutRate": 0.1
+        },
+        "inputShape": [1, 512, 768],
+        "outputShape": [1, 512, 768],
+        "depth": 11,
+        "group": "encoder_layer_1"
+      },
+      {
+        "id": "layer1_add2",
+        "type": "add",
+        "name": "Residual Add 2",
+        "inputShape": [1, 512, 768],
+        "outputShape": [1, 512, 768],
+        "depth": 12,
+        "group": "encoder_layer_1"
+      },
+      {
+        "id": "final_ln",
+        "type": "layerNorm",
+        "name": "Final LayerNorm",
+        "params": {
+          "eps": 1e-6
+        },
+        "inputShape": [1, 512, 768],
+        "outputShape": [1, 512, 768],
+        "depth": 13
+      },
+      {
+        "id": "output",
+        "type": "output",
+        "name": "Output",
+        "inputShape": [1, 512, 768],
+        "depth": 14
+      }
+    ],
+    "edges": [
+      { "source": "input", "target": "embed_add" },
+      { "source": "pos_embed", "target": "embed_add" },
+      { "source": "embed_add", "target": "layer1_ln1" },
+      { "source": "layer1_ln1", "target": "layer1_mha" },
+      { "source": "layer1_mha", "target": "layer1_dropout1" },
+      { "source": "layer1_dropout1", "target": "layer1_add1" },
+      { "source": "embed_add", "target": "layer1_add1" },
+      { "source": "layer1_add1", "target": "layer1_ln2" },
+      { "source": "layer1_ln2", "target": "layer1_ff1" },
+      { "source": "layer1_ff1", "target": "layer1_gelu" },
+      { "source": "layer1_gelu", "target": "layer1_ff2" },
+      { "source": "layer1_ff2", "target": "layer1_dropout2" },
+      { "source": "layer1_dropout2", "target": "layer1_add2" },
+      { "source": "layer1_add1", "target": "layer1_add2" },
+      { "source": "layer1_add2", "target": "final_ln" },
+      { "source": "final_ln", "target": "output" }
+    ],
+    "subgraphs": [
+      {
+        "id": "encoder_layer_1_group",
+        "name": "Encoder Layer 1",
+        "type": "attention",
+        "nodes": [
+          "layer1_ln1", "layer1_mha", "layer1_dropout1", "layer1_add1",
+          "layer1_ln2", "layer1_ff1", "layer1_gelu", "layer1_ff2", 
+          "layer1_dropout2", "layer1_add2"
+        ],
+        "color": "#E91E63"
+      }
+    ]
+  },
+  "visualization": {
+    "layout": "layered",
+    "theme": "dark",
+    "layerSpacing": 2.0,
+    "nodeScale": 1.0,
+    "showLabels": true,
+    "showEdges": true,
+    "edgeStyle": "bezier"
+  }
+}
