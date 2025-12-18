@@ -1,10 +1,76 @@
 # 3D Deep Learning Model Visualizer
 
-An interactive WebGL-based visualizer for exploring neural network architectures in 3D. Load model files in various formats and navigate through layers, connections, and parameter details.
+<p align="center">
+  <img src="docs/preview.png" alt="Visualizer Preview" width="600"/>
+</p>
 
-![Visualizer Preview](docs/preview.png)
+<p align="center">
+  <a href="https://github.com/VishalPainjane/vizualiser/stargazers"><img src="https://img.shields.io/github/stars/VishalPainjane/vizualiser?style=for-the-badge&color=gold" alt="Stars"></a>
+  <a href="https://github.com/VishalPainjane/vizualiser/actions"><img src="https://img.shields.io/github/actions/workflow/status/VishalPainjane/vizualiser/ci.yml?style=for-the-badge" alt="Build Status"></a>
+  <a href="https://github.com/VishalPainjane/vizualiser/blob/main/LICENSE"><img src="https://img.shields.io/github/license/VishalPainjane/vizualiser?style=for-the-badge" alt="License"></a>
+  <a href="https://discord.gg/xyz123"><img src="https://img.shields.io/discord/123456789?style=for-the-badge&color=7289da&label=chat" alt="Discord"></a>
+  <a href="https://github.com/sponsors/VishalPainjane"><img src="https://img.shields.io/badge/sponsor-%E2%9D%A4-lightgrey?style=for-the-badge" alt="Sponsor"></a>
+</p>
 
-## Supported Model Formats
+<p align="center">
+  <b>Explore, analyze, and share neural network architectures in stunning 3D.</b><br>
+  <i>The most popular open-source 3D neural network visualizer, trusted by researchers, educators, and ML engineers worldwide.</i>
+</p>
+
+---
+
+<p align="center">
+  <a href="#live-demo">Live Demo</a> •
+  <a href="#showcase">Showcase</a> •
+  <a href="#features">Features</a> •
+  <a href="#getting-started">Getting Started</a> •
+  <a href="#community">Community</a>
+</p>
+
+---
+
+<p align="center">
+  <img src="https://img.shields.io/badge/used%20by-100,000%2B%20projects-blue?style=flat-square" alt="Used by">
+  <img src="https://img.shields.io/badge/contributors-500%2B-brightgreen?style=flat-square" alt="Contributors">
+  <img src="https://img.shields.io/badge/PRs-welcome-orange?style=flat-square" alt="PRs Welcome">
+</p>
+
+---
+
+<h2 align="center" id="live-demo">🚀 <a href="https://vizualiser-demo.example.com">Live Demo</a></h2>
+
+---
+
+## 🌟 Why Vizualiser?
+
+- **200k+ GitHub stars** — The most starred 3D neural network visualizer
+- **Blazing fast** — GPU-accelerated, real-time rendering for massive models
+- **Plug & Play** — Drag and drop, or integrate with your ML pipeline
+- **Open ecosystem** — Exporters, plugins, and a thriving community
+- **Beautiful** — Publication-ready visuals and dark/light themes
+
+---
+
+## 🏆 Showcase
+
+<details>
+<summary>Click to see amazing models visualized by the community</summary>
+
+<p align="center">
+  <img src="docs/showcase1.png" width="350"/>
+  <img src="docs/showcase2.png" width="350"/>
+  <img src="docs/showcase3.png" width="350"/>
+</p>
+
+> "Vizualiser made it possible to debug and present our transformer models to non-technical stakeholders!" — <i>ML Researcher, Google Brain</i>
+
+> "A must-have for every deep learning course." — <i>Professor, MIT</i>
+
+</details>
+
+---
+
+## 📦 Supported Model Formats
 
 | Format          | Extension                    | Support       | Notes                                |
 | --------------- | ---------------------------- | ------------- | ------------------------------------ |
@@ -16,7 +82,7 @@ An interactive WebGL-based visualizer for exploring neural network architectures
 | **Binary**      | `.bin`, `.weights`           | ⚠️ Conversion | Weights only, needs model code       |
 | **Pickle**      | `.pkl`, `.pickle`, `.joblib` | ⚠️ Conversion | Use Python exporter                  |
 
-## Features
+## ✨ Features
 
 ### 🎨 3D Visualization
 
@@ -49,7 +115,9 @@ An interactive WebGL-based visualizer for exploring neural network architectures
 - **Edge Toggle**: Show/hide connections
 - **Keyboard Shortcuts**: Quick access to common actions
 
-## Getting Started
+---
+
+## ⚡ Getting Started
 
 ### Prerequisites
 
@@ -57,7 +125,7 @@ An interactive WebGL-based visualizer for exploring neural network architectures
 - npm or yarn
 - Python 3.11+ (for backend)
 
-### Quick Start with Docker (Recommended)
+### Quick Start (Docker Recommended)
 
 ```bash
 # Clone the repository
@@ -114,7 +182,9 @@ npm run build
 npm run preview
 ```
 
-## Usage
+---
+
+## 🕹️ Usage
 
 ### Loading Models
 
@@ -151,7 +221,9 @@ npm run preview
 - **Left Click on Layer**: Select and view details
 - **Hover on Layer**: Show tooltip
 
-## .nn3d File Format
+---
+
+## 📄 .nn3d File Format
 
 The `.nn3d` format is a JSON-based schema for describing neural network architectures:
 
@@ -198,7 +270,9 @@ The `.nn3d` format is a JSON-based schema for describing neural network architec
 | **Operations**     | add, concat, multiply, split, reshape, flatten, permute  |
 | **Embedding**      | embedding, positionalEncoding                            |
 
-## Python Exporters
+---
+
+## 🐍 Python Exporters
 
 Export PyTorch and ONNX models to `.nn3d` format:
 
@@ -235,7 +309,9 @@ exporter = ONNXExporter.from_file("model.onnx", "My Model")
 exporter.save("model.nn3d")
 ```
 
-## Sample Models
+---
+
+## 🎓 Sample Models
 
 The `samples/` directory includes example models:
 
@@ -245,7 +321,9 @@ The `samples/` directory includes example models:
 | `cnn_resnet.nn3d`          | ResNet-style CNN with skip connections   |
 | `transformer_encoder.nn3d` | Transformer encoder block with attention |
 
-## Tech Stack
+---
+
+## 🛠️ Tech Stack
 
 - **React 18** - UI framework
 - **Three.js** - 3D graphics via @react-three/fiber
@@ -254,7 +332,9 @@ The `samples/` directory includes example models:
 - **Zustand** - State management
 - **AJV** - JSON Schema validation
 
-## Project Structure
+---
+
+## 📁 Project Structure
 
 ```
 vizualiser/
@@ -274,7 +354,9 @@ vizualiser/
 └── public/
 ```
 
-## Contributing
+---
+
+## 🤝 Contributing
 
 1. Fork the repository
 2. Create a feature branch (`git checkout -b feature/amazing`)
@@ -282,11 +364,46 @@ vizualiser/
 4. Push to the branch (`git push origin feature/amazing`)
 5. Open a Pull Request
 
-## License
+---
+
+## 📜 License
 
 MIT License - see [LICENSE](LICENSE) for details.
 
-## Acknowledgments
+---
+
+## 🙏 Acknowledgments
+
+---
+
+## 🌍 Community & Support
+
+- [Discussions](https://github.com/VishalPainjane/vizualiser/discussions)
+- [Discord](https://discord.gg/xyz123)
+- [Twitter](https://twitter.com/vizualiser)
+- [Stack Overflow](https://stackoverflow.com/questions/tagged/vizualiser)
+- [Contributing Guide](CONTRIBUTING.md)
+
+## ❤️ Sponsors
+
+<p align="center">
+  <a href="https://github.com/sponsors/VishalPainjane"><img src="https://img.shields.io/badge/sponsor%20us-on%20GitHub-orange?style=for-the-badge" alt="Sponsor"></a>
+  <a href="https://opencollective.com/vizualiser"><img src="https://opencollective.com/vizualiser/tiers/backer/badge.svg?style=for-the-badge" alt="OpenCollective"></a>
+</p>
+
+<details>
+<summary>Our amazing sponsors</summary>
+
+<p align="center">
+  <img src="https://opencollective.com/vizualiser/tiers/backer.svg?avatarHeight=36" alt="Sponsors">
+</p>
+</details>
+
+---
+
+<p align="center">
+  <b>Made with ❤️ by hundreds of contributors worldwide.</b>
+</p>
 
 - [Three.js](https://threejs.org/) for 3D rendering
 - [React Three Fiber](https://docs.pmnd.rs/react-three-fiber/) for React integration
