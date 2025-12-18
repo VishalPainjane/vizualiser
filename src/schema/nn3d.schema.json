@@ -1,0 +1,422 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://nn3d.dev/schema/nn3d.schema.json",
+  "title": "NN3D Neural Network Schema",
+  "description": "Schema for defining neural network architectures for 3D visualization",
+  "type": "object",
+  "required": ["version", "metadata", "graph"],
+  "properties": {
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "description": "Schema version (semver format)"
+    },
+    "metadata": {
+      "$ref": "#/definitions/Metadata"
+    },
+    "graph": {
+      "$ref": "#/definitions/Graph"
+    },
+    "visualization": {
+      "$ref": "#/definitions/VisualizationConfig"
+    },
+    "activations": {
+      "$ref": "#/definitions/ActivationData"
+    }
+  },
+  "definitions": {
+    "Metadata": {
+      "type": "object",
+      "required": ["name"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Model name"
+        },
+        "description": {
+          "type": "string",
+          "description": "Model description"
+        },
+        "framework": {
+          "type": "string",
+          "enum": ["pytorch", "tensorflow", "keras", "onnx", "jax", "custom"],
+          "description": "Source framework"
+        },
+        "author": {
+          "type": "string"
+        },
+        "created": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "tags": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "inputShape": {
+          "$ref": "#/definitions/TensorShape"
+        },
+        "outputShape": {
+          "$ref": "#/definitions/TensorShape"
+        },
+        "totalParams": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "trainableParams": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "Graph": {
+      "type": "object",
+      "required": ["nodes", "edges"],
+      "properties": {
+        "nodes": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Node" },
+          "description": "List of layer nodes"
+        },
+        "edges": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Edge" },
+          "description": "Connections between nodes"
+        },
+        "subgraphs": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Subgraph" },
+          "description": "Nested subgraphs (for modules/blocks)"
+        }
+      }
+    },
+    "Node": {
+      "type": "object",
+      "required": ["id", "type", "name"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique node identifier"
+        },
+        "type": {
+          "$ref": "#/definitions/LayerType"
+        },
+        "name": {
+          "type": "string",
+          "description": "Human-readable layer name"
+        },
+        "params": {
+          "$ref": "#/definitions/LayerParams"
+        },
+        "inputShape": {
+          "$ref": "#/definitions/TensorShape"
+        },
+        "outputShape": {
+          "$ref": "#/definitions/TensorShape"
+        },
+        "position": {
+          "$ref": "#/definitions/Position3D"
+        },
+        "weights": {
+          "$ref": "#/definitions/WeightRef"
+        },
+        "attributes": {
+          "type": "object",
+          "additionalProperties": true,
+          "description": "Additional layer-specific attributes"
+        },
+        "group": {
+          "type": "string",
+          "description": "Group/block this node belongs to"
+        },
+        "depth": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Depth level in the network"
+        }
+      }
+    },
+    "LayerType": {
+      "type": "string",
+      "enum": [
+        "input",
+        "output",
+        "conv1d",
+        "conv2d",
+        "conv3d",
+        "convTranspose2d",
+        "depthwiseConv2d",
+        "separableConv2d",
+        "linear",
+        "dense",
+        "embedding",
+        "batchNorm1d",
+        "batchNorm2d",
+        "layerNorm",
+        "groupNorm",
+        "instanceNorm",
+        "dropout",
+        "relu",
+        "leakyRelu",
+        "gelu",
+        "silu",
+        "sigmoid",
+        "tanh",
+        "softmax",
+        "maxPool1d",
+        "maxPool2d",
+        "avgPool2d",
+        "globalAvgPool",
+        "adaptiveAvgPool",
+        "flatten",
+        "reshape",
+        "concat",
+        "add",
+        "multiply",
+        "split",
+        "attention",
+        "multiHeadAttention",
+        "selfAttention",
+        "crossAttention",
+        "lstm",
+        "gru",
+        "rnn",
+        "transformer",
+        "encoderBlock",
+        "decoderBlock",
+        "residualBlock",
+        "upsample",
+        "interpolate",
+        "pad",
+        "custom"
+      ]
+    },
+    "LayerParams": {
+      "type": "object",
+      "properties": {
+        "inChannels": { "type": "integer" },
+        "outChannels": { "type": "integer" },
+        "inFeatures": { "type": "integer" },
+        "outFeatures": { "type": "integer" },
+        "kernelSize": {
+          "oneOf": [
+            { "type": "integer" },
+            { "type": "array", "items": { "type": "integer" } }
+          ]
+        },
+        "stride": {
+          "oneOf": [
+            { "type": "integer" },
+            { "type": "array", "items": { "type": "integer" } }
+          ]
+        },
+        "padding": {
+          "oneOf": [
+            { "type": "integer" },
+            { "type": "string" },
+            { "type": "array", "items": { "type": "integer" } }
+          ]
+        },
+        "dilation": {
+          "oneOf": [
+            { "type": "integer" },
+            { "type": "array", "items": { "type": "integer" } }
+          ]
+        },
+        "groups": { "type": "integer" },
+        "bias": { "type": "boolean" },
+        "numHeads": { "type": "integer" },
+        "hiddenSize": { "type": "integer" },
+        "dropoutRate": { "type": "number", "minimum": 0, "maximum": 1 },
+        "eps": { "type": "number" },
+        "momentum": { "type": "number" },
+        "affine": { "type": "boolean" },
+        "numEmbeddings": { "type": "integer" },
+        "embeddingDim": { "type": "integer" },
+        "axis": { "type": "integer" },
+        "scaleFactor": { "type": "number" },
+        "mode": { "type": "string" }
+      },
+      "additionalProperties": true
+    },
+    "Edge": {
+      "type": "object",
+      "required": ["source", "target"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique edge identifier"
+        },
+        "source": {
+          "type": "string",
+          "description": "Source node ID"
+        },
+        "target": {
+          "type": "string",
+          "description": "Target node ID"
+        },
+        "sourcePort": {
+          "type": "integer",
+          "description": "Output port index on source node"
+        },
+        "targetPort": {
+          "type": "integer",
+          "description": "Input port index on target node"
+        },
+        "tensorShape": {
+          "$ref": "#/definitions/TensorShape"
+        },
+        "dtype": {
+          "type": "string",
+          "enum": ["float16", "float32", "float64", "int32", "int64", "bool"]
+        },
+        "label": {
+          "type": "string"
+        }
+      }
+    },
+    "Subgraph": {
+      "type": "object",
+      "required": ["id", "name", "nodes"],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "enum": ["sequential", "residual", "parallel", "attention", "custom"]
+        },
+        "nodes": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Node IDs belonging to this subgraph"
+        },
+        "color": {
+          "type": "string",
+          "pattern": "^#[0-9a-fA-F]{6}$"
+        },
+        "collapsed": {
+          "type": "boolean",
+          "default": false
+        }
+      }
+    },
+    "TensorShape": {
+      "type": "array",
+      "items": {
+        "oneOf": [
+          { "type": "integer", "minimum": -1 },
+          { "type": "string" }
+        ]
+      },
+      "description": "Tensor dimensions (-1 or string for dynamic)"
+    },
+    "Position3D": {
+      "type": "object",
+      "properties": {
+        "x": { "type": "number" },
+        "y": { "type": "number" },
+        "z": { "type": "number" }
+      },
+      "required": ["x", "y", "z"]
+    },
+    "WeightRef": {
+      "type": "object",
+      "properties": {
+        "url": {
+          "type": "string",
+          "format": "uri",
+          "description": "URL to weight blob"
+        },
+        "offset": {
+          "type": "integer",
+          "description": "Byte offset in weight file"
+        },
+        "size": {
+          "type": "integer",
+          "description": "Size in bytes"
+        },
+        "dtype": {
+          "type": "string"
+        },
+        "shape": {
+          "$ref": "#/definitions/TensorShape"
+        }
+      }
+    },
+    "VisualizationConfig": {
+      "type": "object",
+      "properties": {
+        "layout": {
+          "type": "string",
+          "enum": ["layered", "force", "circular", "hierarchical", "custom"],
+          "default": "layered"
+        },
+        "theme": {
+          "type": "string",
+          "enum": ["light", "dark", "blueprint"],
+          "default": "dark"
+        },
+        "layerSpacing": {
+          "type": "number",
+          "default": 2.0
+        },
+        "nodeScale": {
+          "type": "number",
+          "default": 1.0
+        },
+        "colorScheme": {
+          "type": "object",
+          "additionalProperties": { "type": "string" }
+        },
+        "camera": {
+          "type": "object",
+          "properties": {
+            "position": { "$ref": "#/definitions/Position3D" },
+            "target": { "$ref": "#/definitions/Position3D" },
+            "fov": { "type": "number", "default": 60 }
+          }
+        },
+        "showLabels": { "type": "boolean", "default": true },
+        "showEdges": { "type": "boolean", "default": true },
+        "edgeStyle": {
+          "type": "string",
+          "enum": ["line", "tube", "arrow", "bezier"],
+          "default": "tube"
+        }
+      }
+    },
+    "ActivationData": {
+      "type": "object",
+      "properties": {
+        "source": {
+          "type": "string",
+          "enum": ["file", "live", "embedded"]
+        },
+        "url": {
+          "type": "string",
+          "format": "uri"
+        },
+        "nodeActivations": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "min": { "type": "number" },
+              "max": { "type": "number" },
+              "mean": { "type": "number" },
+              "std": { "type": "number" },
+              "histogram": {
+                "type": "array",
+                "items": { "type": "number" }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
