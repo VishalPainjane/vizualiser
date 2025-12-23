@@ -249,6 +249,19 @@ async function parseOnnxProtobuf(buffer: ArrayBuffer, warnings: string[]): Promi
       outputToNode.set(node.id, node.id);
     }
     
+    // Calculate total parameters from initializers (weights)
+    let totalParams = 0;
+    if (model.graph && model.graph.initializer) {
+        for (const init of model.graph.initializer) {
+            // init is TensorProto, check dims
+            if (init.dims && init.dims.length > 0) {
+                let size = 1;
+                for (const d of init.dims) size *= Number(d);
+                totalParams += size;
+            }
+        }
+    }
+
     // Process nodes
     for (let i = 0; i < (graph.node || []).length; i++) {
       const node = graph.node[i];
@@ -316,6 +329,7 @@ async function parseOnnxProtobuf(buffer: ArrayBuffer, warnings: string[]): Promi
         opsetVersion: model.opsetImport?.[0]?.version,
         producerName: model.producerName,
         producerVersion: model.producerVersion,
+        totalParams, // Pass calculated total
       }
     );
     
@@ -743,14 +757,17 @@ function convertToNN3D(
     }
   }
   
-  // Count total parameters (rough estimate)
-  let totalParams = 0;
-  for (const layer of layers) {
-    if (layer.type === 'linear' && layer.inputShape && layer.outputShape) {
-      const inSize = layer.inputShape[layer.inputShape.length - 1] || 1;
-      const outSize = layer.outputShape[layer.outputShape.length - 1] || 1;
-      totalParams += inSize * outSize;
-    }
+  // Count total parameters (heuristic fallback if not provided in metadata)
+  let totalParams = (metadata.totalParams as number) || 0;
+  
+  if (totalParams === 0) {
+      for (const layer of layers) {
+        if (layer.type === 'linear' && layer.inputShape && layer.outputShape) {
+          const inSize = layer.inputShape[layer.inputShape.length - 1] || 1;
+          const outSize = layer.outputShape[layer.outputShape.length - 1] || 1;
+          totalParams += inSize * outSize;
+        }
+      }
   }
   
   return {

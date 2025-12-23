@@ -72,6 +72,7 @@ export interface ArchitectureLayout {
   totalLayers: number;
   modelName: string;
   isLinear: boolean;
+  totalParameters: number;
   cameraSuggestion?: {
     position: { x: number; y: number; z: number };
     target: { x: number; y: number; z: number };
@@ -765,6 +766,7 @@ export function computeArchitectureLayout(
     totalLayers: architecture.layers.length,
     modelName: architecture.name,
     isLinear: isBronzePath || isLinearArchitecture(buildGraph(architecture.layers, architecture.connections)),
+    totalParameters: architecture.totalParameters,
     cameraSuggestion,
   };
 }

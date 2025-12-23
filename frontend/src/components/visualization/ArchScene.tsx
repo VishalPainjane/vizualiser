@@ -102,14 +102,31 @@ const SceneContent: React.FC<{
             onClick={() => onLayerClick(block.id)}
           />
           {showLabels && (
-            <Text
-              position={[block.position.x, block.position.y + block.dimensions.height / 2 + 0.3, block.position.z]}
-              fontSize={0.2}
-              color="white"
-              anchorX="center"
-            >
-              {block.displayName}
-            </Text>
+            <group position={[block.position.x, block.position.y, block.position.z]}>
+              {/* Layer Name */}
+              <Text
+                position={[0, block.dimensions.height / 2 + 0.5, 0]}
+                fontSize={0.3}
+                color="white"
+                anchorX="center"
+                anchorY="bottom"
+              >
+                {block.displayName}
+              </Text>
+              
+              {/* Shape / Dimension Label */}
+              {block.dimensionLabel && (
+                <Text
+                  position={[0, -block.dimensions.height / 2 - 0.2, 0]}
+                  fontSize={0.2}
+                  color="#aaaaaa"
+                  anchorX="center"
+                  anchorY="top"
+                >
+                  {block.dimensionLabel}
+                </Text>
+              )}
+            </group>
           )}
         </React.Fragment>
       ))}
@@ -122,6 +139,17 @@ const SceneContent: React.FC<{
           isSkip={conn.isSkipConnection}
         />
       ))}
+      
+      {/* Model Stats Display */}
+      <Text
+        position={[0, layout.bounds.minY - 3, 0]}
+        fontSize={0.8}
+        color="#40e0d0"
+        anchorX="center"
+        anchorY="top"
+      >
+        {`Total Parameters: ${layout.totalParameters.toLocaleString()}`}
+      </Text>
     </group>
   );
 };
