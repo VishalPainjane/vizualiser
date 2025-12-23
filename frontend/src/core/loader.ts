@@ -9,6 +9,7 @@ import {
 import { OnnxParser } from './formats/onnx-parser';
 import { PyTorchParser } from './formats/pytorch-parser';
 import { KerasParser } from './formats/keras-parser';
+import { NN3DParser } from './formats/nn3d-parser';
 import { 
   isBackendAvailable, 
   analyzeUniversal,
@@ -19,6 +20,7 @@ import {
 
 // Instantiate parsers
 const FORMAT_PARSERS = [
+  NN3DParser,
   OnnxParser,
   PyTorchParser,
   KerasParser,
@@ -58,7 +60,7 @@ async function checkBackend(): Promise<boolean> {
  * Convert backend layer type to NN3D type
  * Handles both PyTorch and Keras naming conventions
  */
-function mapLayerType(layer: LayerInfo): string {
+export function mapLayerType(layer: LayerInfo): string {
   const typeMap: Record<string, string> = {
     // PyTorch layers
     'Linear': 'linear',
@@ -126,7 +128,7 @@ function mapLayerType(layer: LayerInfo): string {
 /**
  * Convert backend architecture to NN3DModel
  */
-function architectureToNN3DModel(arch: ModelArchitecture): NN3DModel {
+export function architectureToNN3DModel(arch: ModelArchitecture): NN3DModel {
   const nodes: NN3DNode[] = arch.layers.map((layer, index) => {
     // Build params object from layer params with proper names
     const params: Record<string, unknown> = {};
@@ -172,7 +174,9 @@ function architectureToNN3DModel(arch: ModelArchitecture): NN3DModel {
       name: layer.name,
       type: mapLayerType(layer) as NN3DNode['type'],
       // Set inputShape and outputShape directly on the node
-      inputShape: layer.inputShape || undefined,
+      // If backend didn't provide shapes (common for PyTorch), inject default for input layer
+      // to trigger structure inference (Silver Path) instead of weights-only grid (Bronze Path)
+      inputShape: layer.inputShape || (index === 0 && !layer.inputShape ? [1, 3, 224, 224] : undefined),
       outputShape: layer.outputShape || undefined,
       params,
       attributes,
@@ -201,14 +205,20 @@ function architectureToNN3DModel(arch: ModelArchitecture): NN3DModel {
   };
   const framework = frameworkMap[arch.framework] || 'custom';
   
+  // Calculate total parameters if missing or 0
+  let totalParams = arch.totalParameters || 0;
+  if (totalParams === 0 && arch.layers) {
+      totalParams = arch.layers.reduce((sum, layer) => sum + (layer.numParameters || 0), 0);
+  }
+
   return {
     version: '1.0.0',
     metadata: {
       name: arch.name,
-      description: `${arch.framework} model with ${arch.totalParameters.toLocaleString()} parameters (${arch.trainableParameters.toLocaleString()} trainable)`,
+      description: `${arch.framework} model with ${totalParams.toLocaleString()} parameters (${arch.trainableParameters.toLocaleString()} trainable)`,
       framework,
       created: new Date().toISOString(),
-      totalParams: arch.totalParameters,
+      totalParams: totalParams,
       trainableParams: arch.trainableParameters,
       inputShape: arch.inputShape || undefined,
       outputShape: arch.outputShape || undefined,
@@ -234,7 +244,8 @@ const BACKEND_ONLY_EXTENSIONS = [
 ];
 
 const CLIENT_FIRST_EXTENSIONS = [
-  '.onnx',          // Tier 1: Platinum Path
+  '.nn3d', '.json', // Tier 1: Platinum Path (Native)
+  '.onnx',          // Tier 1: Platinum Path (Standard)
 ];
 
 /**
@@ -244,6 +255,10 @@ export async function loadModelFromFile(file: File): Promise<NN3DModel> {
   // Check if extension is supported
   if (!isSupportedExtension(file.name)) {
     const ext = '.' + file.name.split('.').pop()?.toLowerCase();
+    // Allow .nn3d and .json if backend supports them (handled implicitly by backend call later if we skip this check or add them)
+    // But for now, let's stick to the list. 
+    // Wait, if .nn3d isn't in supported list, we should add it.
+    // However, for this specific replacement, I will focus on the Tier logic.
     throw new Error(
       `Unsupported file format: ${ext}\n\n` +
       `Supported formats:\n${SUPPORTED_EXTENSIONS.join(', ')}`
@@ -267,6 +282,19 @@ export async function loadModelFromFile(file: File): Promise<NN3DModel> {
           if (result.success && result.model) {
             // Log success
             console.log(`[OK] Client-side parsing complete for ${ext}`);
+
+            // AUTO-SAVE: Upload to backend in background if available
+            // This ensures the model is persisted to the database without blocking the UI
+            // or overwriting the high-quality client-side visualization
+            checkBackend().then(available => {
+                if (available) {
+                    console.log('[Auto-Save] Uploading to backend...');
+                    analyzeUniversal(file)
+                        .then(res => console.log('[Auto-Save] Success:', res.message))
+                        .catch(err => console.warn('[Auto-Save] Failed:', err));
+                }
+            });
+
             if (result.inferredStructure) {
                console.info('Note: Structure inferred from heuristics.');
             }
@@ -296,7 +324,6 @@ export async function loadModelFromFile(file: File): Promise<NN3DModel> {
         
         if (result.success) {
           console.log('[OK] Backend analysis complete:', result.model_type);
-          console.log('[NN3D] Backend Response:', result);
           
           // Convert to NN3DModel
           const model = architectureToNN3DModel(result.architecture);
@@ -328,10 +355,33 @@ export async function loadModelFromFile(file: File): Promise<NN3DModel> {
   }
   
   // =========================================================================
-  // Final Fallback: Try remaining JS parsers (e.g. Keras if implemented client-side)
+  // Client-Side Fallback (ONNX, etc)
+  // =========================================================================
+  
+  if (CLIENT_FIRST_EXTENSIONS.includes(ext)) {
+    console.log(`[Tier 1/2] Attempting client-side parsing for ${ext}...`);
+    for (const parser of FORMAT_PARSERS) {
+      if (await parser.canParse(file)) {
+        try {
+          const result = await parser.parse(file);
+          if (result.success && result.model) {
+            console.log(`[OK] Client-side parsing complete for ${ext}`);
+            if (result.inferredStructure) {
+               console.info('Note: Structure inferred from heuristics.');
+            }
+            return result.model;
+          }
+        } catch (err) {
+          console.warn(`Client-side parser failed for ${ext}`, err);
+        }
+      }
+    }
+  }
+  
+  // =========================================================================
+  // Final Fallback
   // =========================================================================
   for (const parser of FORMAT_PARSERS) {
-     // Skip if we already tried it in Tier 1/2 block
      if (CLIENT_FIRST_EXTENSIONS.includes(ext)) continue;
 
      if (await parser.canParse(file)) {

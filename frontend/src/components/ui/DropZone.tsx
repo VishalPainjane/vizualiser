@@ -1,6 +1,6 @@
 import React, { useCallback, useState } from 'react';
 import { useVisualizerStore } from '@/core/store';
-import { loadModelFromFile, SUPPORTED_EXTENSIONS } from '@/core/loader';
+import { loadModelFromFile, SUPPORTED_EXTENSIONS, architectureToNN3DModel } from '@/core/loader';
 import { computeLayout } from '@/core/layout';
 import { isSupportedExtension, getFormatDisplayName, detectFormatFromExtension } from '@/core/formats';
 import { SavedModelsPanel } from '@/components/visualization/SavedModelsPanel';
@@ -146,43 +146,13 @@ export function DropZone({ children }: DropZoneProps) {
 
   // Handle loading a saved model from the panel
   const handleLoadSavedModel = useCallback((architecture: any) => {
-    // Create a model structure from the saved architecture (matching App.tsx format)
-    const savedModel = {
-      version: '1.0',
-      metadata: {
-        name: architecture.name,
-        framework: architecture.framework,
-        totalParams: architecture.totalParameters,
-        trainableParams: architecture.trainableParameters,
-        inputShape: architecture.inputShape,
-        outputShape: architecture.outputShape,
-      },
-      graph: {
-        nodes: architecture.layers.map((layer: any) => ({
-          id: layer.id,
-          name: layer.name,
-          type: layer.type,
-          inputShape: layer.inputShape,
-          outputShape: layer.outputShape,
-          params: layer.params || {},
-          attributes: {
-            category: layer.category,
-            parameters: layer.numParameters,
-          },
-        })),
-        edges: architecture.connections?.map((conn: any, idx: number) => ({
-          id: `edge-${idx}`,
-          source: conn.source,
-          target: conn.target,
-          tensorShape: conn.tensorShape,
-        })) || [],
-      },
-    };
+    // Use the shared converter to ensure consistency with the loader
+    const savedModel = architectureToNN3DModel(architecture);
     
-    loadModel(savedModel as any);
+    loadModel(savedModel);
     
     // Compute layout for the loaded model
-    const layoutResult = computeLayout(savedModel as any, {
+    const layoutResult = computeLayout(savedModel, {
       type: config.layout || 'layered',
       layerSpacing: config.layerSpacing || 3,
     });

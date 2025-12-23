@@ -8,6 +8,8 @@ import type { NN3DModel } from '@/schema/types';
  * Supported model file extensions
  */
 export const SUPPORTED_EXTENSIONS = [
+  '.nn3d',      // NN3D Native
+  '.json',      // NN3D Native (JSON)
   '.onnx',      // ONNX models
   '.pt',        // PyTorch model
   '.pth',       // PyTorch checkpoint
