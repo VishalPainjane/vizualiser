@@ -19,7 +19,7 @@ COPY frontend/ ./
 ENV VITE_API_URL=
 
 # Build the frontend
-RUN npm run build
+RUN VITE_API_URL="" npm run build
 
 # --- Stage 2: Backend and Runtime ---
 FROM python:3.11-slim
@@ -51,8 +51,8 @@ ENV PYTHONPATH=/app
 # Create data directory
 RUN mkdir -p /app/data
 
-# Expose port 8000
-EXPOSE 8000
+# Expose port 3000
+EXPOSE 3000
 
 # Start command
-CMD ["uvicorn", "backend.app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["sh", "-c", "uvicorn backend.app.main:app --host 0.0.0.0 --port ${PORT:-3000}"]

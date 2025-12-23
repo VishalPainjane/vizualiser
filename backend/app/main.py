@@ -1169,7 +1169,7 @@ if frontend_dist and os.path.exists(frontend_dist):
     
     # Static files mount
     # Note: This is defined last so it doesn't catch API routes
-    app.mount("/static", StaticFiles(directory=os.path.join(frontend_dist, "assets")), name="static")
+    app.mount("/assets", StaticFiles(directory=os.path.join(frontend_dist, "assets")), name="assets")
     
     @app.get("/{path:path}")
     async def serve_frontend(path: str):

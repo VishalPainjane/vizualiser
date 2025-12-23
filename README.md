@@ -127,16 +127,23 @@ cd 3dNN_Visualiser
 # Start with Docker Compose
 docker-compose up --build
 
-# Or use the All-in-One single image:
+# Or use the All-in-One single image (Best for Cloud/Replit):
 docker build -t nn3d-all-in-one .
-docker run -p 8001:8000 nn3d-all-in-one
+docker run -p 3000:3000 nn3d-all-in-one
 ```
+
+### 🚀 Deploy to Replit
+
+This project is optimized for Replit deployment as a single container:
+1. Create a new Repl by importing this repository.
+2. Select "Docker" as the deployment type (if prompted) or use the All-in-One `Dockerfile`.
+3. The application will automatically listen on port `3000`, which Replit uses for its WebView.
 
 Access the application:
 
-- **Frontend**: http://localhost:3000 (Compose) or http://localhost:8001 (Single Image)
-- **Backend API**: http://localhost:8001
-- **API Docs**: http://localhost:8001/docs
+- **Frontend/API**: http://localhost:3000 (Single Image) or http://localhost:3000/8001 (Compose)
+- **Backend API**: http://localhost:3000
+- **API Docs**: http://localhost:3000/docs
 
 ```bash
 # Stop containers
