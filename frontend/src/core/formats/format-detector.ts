@@ -8,21 +8,13 @@ import { FormatInfo, FormatCategory, SUPPORTED_EXTENSIONS } from './types';
  * Extension to format category mapping
  */
 const EXTENSION_CATEGORIES: Record<string, FormatCategory> = {
-  '.nn3d': 'native',
-  '.json': 'native',
   '.onnx': 'onnx',
   '.pt': 'pytorch',
   '.pth': 'pytorch',
   '.ckpt': 'pytorch',
-  '.bin': 'generic',
-  '.safetensors': 'safetensors',
   '.h5': 'tensorflow',
   '.hdf5': 'tensorflow',
-  '.pkl': 'generic',
-  '.pickle': 'generic',
-  '.joblib': 'generic',
-  '.model': 'generic',
-  '.weights': 'generic',
+  '.pb': 'tensorflow',
 };
 
 /**

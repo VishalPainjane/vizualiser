@@ -16,3 +16,4 @@ __pycache__/
 .pytest_cache/
 build/
 *.nn3d.bak
+files_to_commit

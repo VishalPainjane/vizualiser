@@ -160,6 +160,7 @@ export interface NN3DMetadata {
   outputShape?: TensorShape;
   totalParams?: number;
   trainableParams?: number;
+  warning?: string;
 }
 
 // Visualization configuration

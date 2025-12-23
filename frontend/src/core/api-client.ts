@@ -3,7 +3,7 @@
  * Communicates with Python FastAPI server for model analysis
  */
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8001';
 
 export interface LayerInfo {
   id: string;
@@ -116,13 +116,18 @@ export async function analyzeONNXWithBackend(file: File): Promise<AnalysisRespon
 
 /**
  * Analyze any model file using the universal endpoint
- * Supports: .pt, .pth, .ckpt, .bin, .model, .onnx, .h5, .hdf5, .keras, .pb, .safetensors
+ * Implements the 4-Tier Pipeline:
+ * 1. Platinum Path: .nn3d, .onnx (Native/Zero-Latency)
+ * 2. Gold Path: .safetensors, .h5 (Structure Inference)
+ * 3. Silver Path: .pt (TorchScript/JIT - Backend Tracing)
+ * 4. Bronze Path: .pt (State Dict - Stack Visualization)
  */
 export async function analyzeUniversal(file: File): Promise<AnalysisResponse> {
   const formData = new FormData();
   formData.append('file', file);
   
-  const response = await fetch(`${API_BASE_URL}/analyze/universal`, {
+  // Use the unified /upload endpoint which implements the Detect & Dispatch logic
+  const response = await fetch(`${API_BASE_URL}/upload`, {
     method: 'POST',
     body: formData,
   });

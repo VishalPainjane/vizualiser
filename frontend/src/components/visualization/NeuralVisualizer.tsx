@@ -6,9 +6,8 @@
  */
 
 import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
-import { ArchScene, type CameraView } from './ArchScene';
+import { ArchScene } from './ArchScene'; // Visualization component
 import { SavedModelsPanel } from './SavedModelsPanel';
-import { saveModel, findModelByName, type ModelArchitecture } from '@/core/api-client';
 import styles from './NeuralVisualizer.module.css';
 
 // ============================================================================
@@ -18,6 +17,7 @@ import styles from './NeuralVisualizer.module.css';
 export interface ModelArchitectureData {
   name: string;
   framework: string;
+  tags?: string[];
   totalParameters: number;
   trainableParameters?: number;
   inputShape?: number[] | null;
@@ -49,6 +49,9 @@ export interface NeuralVisualizerProps {
   
   /** Error message */
   error?: string | null;
+
+  /** Warning message (e.g. for Bronze Path/Weights Only) */
+  warning?: string | null;
   
   /** Callback when a layer is selected */
   onLayerSelect?: (layerId: string | null) => void;
@@ -68,6 +71,7 @@ export const NeuralVisualizer: React.FC<NeuralVisualizerProps> = ({
   architecture,
   isLoading = false,
   error = null,
+  warning = null,
   onLayerSelect,
   onUploadNew,
   onLoadSavedModel,
@@ -77,243 +81,136 @@ export const NeuralVisualizer: React.FC<NeuralVisualizerProps> = ({
   
   // View state
   const [showLabels, setShowLabels] = useState(true);
-  const [showDimensions, setShowDimensions] = useState(true);
   const [showConnections, setShowConnections] = useState(false);
+  const [showWarning, setShowWarning] = useState(true);
   
   // Selection state
   const [selectedLayerId, setSelectedLayerId] = useState<string | null>(null);
   
   // Saved models panel state
   const [showSavedModels, setShowSavedModels] = useState(false);
-  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [saveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   
   // Key for forcing camera reset
   const [sceneKey, setSceneKey] = useState(0);
   
-  // Camera view preset
-  const [cameraView, setCameraView] = useState<CameraView | undefined>(undefined);
-  
-  // Get selected layer data
+  // Reset warning visibility when warning changes
+  useEffect(() => {
+    if (warning) setShowWarning(true);
+  }, [warning]);
+
+  // Derived state
   const selectedLayer = useMemo(() => {
-    if (!selectedLayerId || !architecture) return null;
-    return architecture.layers.find(l => l.id === selectedLayerId) || null;
-  }, [selectedLayerId, architecture]);
-  
+    if (!architecture || !selectedLayerId) return null;
+    return architecture.layers.find(l => l.id === selectedLayerId);
+  }, [architecture, selectedLayerId]);
+
   // Handlers
   const handleLayerClick = useCallback((layerId: string) => {
-    setSelectedLayerId(prev => prev === layerId ? null : layerId);
+    setSelectedLayerId(layerId);
     onLayerSelect?.(layerId);
   }, [onLayerSelect]);
-  
-  const handleLayerHover = useCallback((_layerId: string | null) => {
-    // Could show preview on hover
+
+  const handleResetView = useCallback(() => {
+    setSceneKey(prev => prev + 1);
+    setSelectedLayerId(null);
   }, []);
-  
+
   const handleCloseDetail = useCallback(() => {
     setSelectedLayerId(null);
     onLayerSelect?.(null);
   }, [onLayerSelect]);
-  
-  const handleResetView = useCallback(() => {
-    setSceneKey(prev => prev + 1);
-    setCameraView(undefined);
-  }, []);
-  
-  const handleSetView = useCallback((view: CameraView) => {
-    setCameraView(view);
-    // Force re-render to apply new view
-    setSceneKey(prev => prev + 1);
-  }, []);
-  
-  // Save image handler
-  const handleSaveImage = useCallback(() => {
-    const canvas = sceneContainerRef.current?.querySelector('canvas');
-    if (canvas) {
-      const link = document.createElement('a');
-      link.download = `${architecture?.name || 'neural-network'}-visualization.png`;
-      link.href = canvas.toDataURL('image/png');
-      link.click();
-    }
-  }, [architecture?.name]);
-  
-  // Toggle fullscreen
-  const handleFullscreen = useCallback(() => {
-    const container = sceneContainerRef.current?.parentElement;
-    if (!container) return;
+
+  const handleSaveImage = useCallback(async () => {
+    if (!sceneContainerRef.current) return;
     
+    try {
+      // Find the canvas element
+      const canvas = sceneContainerRef.current.querySelector('canvas');
+      if (!canvas) return;
+      
+      // Convert to blob and download
+      canvas.toBlob((blob) => {
+        if (!blob) return;
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${architecture?.name || 'model'}_visualization.png`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      });
+    } catch (err) {
+      console.error('Failed to save image:', err);
+    }
+  }, [architecture]);
+
+  const handleFullscreen = useCallback(() => {
     if (!document.fullscreenElement) {
-      container.requestFullscreen?.();
+      document.documentElement.requestFullscreen().catch(err => {
+        console.error(`Error attempting to enable fullscreen: ${err.message}`);
+      });
     } else {
-      document.exitFullscreen?.();
+      if (document.exitFullscreen) {
+        document.exitFullscreen();
+      }
     }
   }, []);
-  
-  // Auto-save model after loading (only if not already saved)
-  useEffect(() => {
-    if (architecture && saveStatus === 'idle') {
-      setSaveStatus('saving');
-      
-      // First check if model with this name already exists
-      findModelByName(architecture.name)
-        .then((existing) => {
-          if (existing) {
-            // Model already exists, mark as saved without creating new entry
-            console.log(`[NN3D] Model "${architecture.name}" already saved (id: ${existing.id})`);
-            setSaveStatus('saved');
-            return;
-          }
-          
-          // Model doesn't exist, save it
-          const archForSave: ModelArchitecture = {
-            name: architecture.name,
-            framework: architecture.framework,
-            totalParameters: architecture.totalParameters,
-            trainableParameters: architecture.trainableParameters || 0,
-            inputShape: architecture.inputShape || null,
-            outputShape: architecture.outputShape || null,
-            layers: architecture.layers,
-            connections: architecture.connections,
-          };
-          
-          return saveModel(
-            architecture.name,
-            architecture.framework,
-            architecture.totalParameters,
-            architecture.layers.length,
-            archForSave
-          ).then(() => {
-            console.log(`[NN3D] Model "${architecture.name}" saved successfully`);
-            setSaveStatus('saved');
-          });
-        })
-        .catch((err) => {
-          console.error('Failed to save model:', err);
-          setSaveStatus('error');
-        });
-    }
-  }, [architecture, saveStatus]);
-  
-  // Reset save status when architecture changes
-  useEffect(() => {
-    setSaveStatus('idle');
-  }, [architecture?.name]);
-  
-  // Handle loading saved model
-  const handleLoadSavedModel = useCallback((arch: any) => {
-    if (onLoadSavedModel) {
-      onLoadSavedModel(arch);
-    }
+
+  const handleLoadSavedModel = useCallback((model: any) => {
+    onLoadSavedModel?.(model);
     setShowSavedModels(false);
   }, [onLoadSavedModel]);
-  
-  // Keyboard shortcuts
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
-        return;
-      }
-      
-      switch (e.key.toLowerCase()) {
-        case 'l':
-          setShowLabels(prev => !prev);
-          break;
-        case 'd':
-          setShowDimensions(prev => !prev);
-          break;
-        case 'c':
-          setShowConnections(prev => !prev);
-          break;
-        case 'r':
-          handleResetView();
-          break;
-        case 'escape':
-          handleCloseDetail();
-          break;
-        // View presets
-        case '1':
-          handleSetView('front');
-          break;
-        case '2':
-          handleSetView('side');
-          break;
-        case '3':
-          handleSetView('top');
-          break;
-        case '4':
-          handleSetView('isometric');
-          break;
-        case '5':
-          handleSetView('back');
-          break;
-        case '6':
-          handleSetView('bottom');
-          break;
-      }
-    };
-    
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleCloseDetail, handleResetView, handleSetView]);
   
   // Loading state
   if (isLoading) {
     return (
-      <div className={styles.container}>
-        <div className={styles.loading}>
-          <div className={styles.spinner} />
-          <span>// ANALYZING MODEL...</span>
-        </div>
+      <div className={styles.loading}>
+        <div className={styles.spinner} />
+        <span>PROCESSING_MODEL...</span>
       </div>
     );
   }
   
   // Error state
   if (error) {
-    return (
-      <div className={styles.container}>
-        <div className={styles.error}>
-          <span className={styles.errorIcon}>[ERROR]</span>
-          <h3>Analysis Failed</h3>
-          <p>{error}</p>
-        </div>
-      </div>
-    );
+    return <div className={styles.error}>Error: {error}</div>;
   }
   
   // Empty state
   if (!architecture) {
-    return (
-      <div className={styles.container}>
-        <div className={styles.empty}>
-          <div className={styles.emptyIcon}></div>
-          <h3>Neural Network Visualizer</h3>
-          <p>Drop a model file to visualize its architecture</p>
-          <div className={styles.supportedFormats}>
-            <span>// .pt .pth .onnx .h5 .keras .safetensors</span>
-          </div>
-          <button 
-            className={styles.savedModelsBtn}
-            onClick={() => setShowSavedModels(true)}
-          >
-            [SAVED MODELS]
-          </button>
-        </div>
-        
-        {/* Saved Models Panel */}
-        {showSavedModels && (
-          <SavedModelsPanel
-            onLoadModel={handleLoadSavedModel}
-            onClose={() => setShowSavedModels(false)}
-          />
-        )}
-      </div>
-    );
+    return <div className={styles.empty}>No model loaded.</div>;
   }
   
   return (
     <div className={styles.container}>
+      {/* Informational Toast for Weights-Only / Matrix Layout */}
+      {architecture.tags?.includes('weights-only') && (
+        <div className={styles.warningToast} style={{ background: '#2D3748', border: '1px solid #4A5568' }}>
+           <span className={styles.warningIcon}>ℹ️</span>
+           <span className={styles.warningText}>
+             Model structure not detected. Visualizing layer weights in 3D space (Graphical Matrix Layout).
+           </span>
+           <button className={styles.warningClose} onClick={(e) => {
+             // Just hide this specific toast instance
+             (e.target as HTMLElement).parentElement!.style.display = 'none';
+           }}>[x]</button>
+        </div>
+      )}
+
+      {/* Warning Toast */}
+      {warning && showWarning && (
+        <div className={styles.warningToast}>
+           <span className={styles.warningIcon}>⚠️</span>
+           <span className={styles.warningText}>{warning}</span>
+           <button className={styles.warningClose} onClick={() => setShowWarning(false)}>[x]</button>
+        </div>
+      )}
+
       {/* Top Toolbar */}
       <div className={styles.topToolbar}>
+
         <div className={styles.modelInfo}>
           <button 
             className={styles.modelIcon} 
@@ -371,52 +268,15 @@ export const NeuralVisualizer: React.FC<NeuralVisualizerProps> = ({
           key={sceneKey}
           architecture={architecture}
           showLabels={showLabels}
-          showDimensions={showDimensions}
           showConnections={showConnections}
           selectedLayerId={selectedLayerId}
           onLayerClick={handleLayerClick}
-          onLayerHover={handleLayerHover}
-          cameraView={cameraView}
         />
       </div>
       
       {/* Camera Control Panel */}
       <div className={styles.cameraControls}>
-        <div className={styles.controlTitle}>// CAMERA_VIEWS</div>
-        <div className={styles.viewButtons}>
-          <button 
-            className={styles.viewBtn} 
-            onClick={() => handleSetView('front')}
-            title="Front View (1)"
-          >
-            <span>[F]</span>
-            <span>FRONT</span>
-          </button>
-          <button 
-            className={styles.viewBtn} 
-            onClick={() => handleSetView('side')}
-            title="Side View (2)"
-          >
-            <span>[S]</span>
-            <span>SIDE</span>
-          </button>
-          <button 
-            className={styles.viewBtn} 
-            onClick={() => handleSetView('top')}
-            title="Top View (3)"
-          >
-            <span>[T]</span>
-            <span>TOP</span>
-          </button>
-          <button 
-            className={styles.viewBtn} 
-            onClick={() => handleSetView('isometric')}
-            title="Isometric View (4)"
-          >
-            <span>[3D]</span>
-            <span>ISO</span>
-          </button>
-        </div>
+        <div className={styles.controlTitle}>// CAMERA</div>
         <button className={styles.resetBtn} onClick={handleResetView}>
           [x] RESET_VIEW
         </button>
@@ -433,15 +293,6 @@ export const NeuralVisualizer: React.FC<NeuralVisualizerProps> = ({
             onChange={(e) => setShowLabels(e.target.checked)}
           />
           <span>LAYER_NAMES</span>
-        </label>
-        
-        <label className={styles.toggle}>
-          <input
-            type="checkbox"
-            checked={showDimensions}
-            onChange={(e) => setShowDimensions(e.target.checked)}
-          />
-          <span>DIMENSIONS</span>
         </label>
         
         <label className={styles.toggle}>

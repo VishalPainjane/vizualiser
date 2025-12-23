@@ -91,11 +91,10 @@ export function DropZone({ children }: DropZoneProps) {
       alert(
         `Unsupported file format: ${ext}\n\n` +
         `Supported formats:\n` +
-        `• .nn3d, .json - Native format\n` +
         `• .onnx - ONNX models\n` +
-        `• .safetensors - SafeTensors (LLM weights)\n` +
-        `• .pt, .pth, .ckpt - PyTorch (requires conversion)\n` +
-        `• .h5, .hdf5 - Keras/TensorFlow (requires conversion)`
+        `• .pt, .pth, .ckpt - PyTorch\n` +
+        `• .h5, .hdf5 - Keras/TensorFlow\n` +
+        `• .pb - TensorFlow SavedModel`
       );
       return;
     }
@@ -220,11 +219,10 @@ export function DropZone({ children }: DropZoneProps) {
             <p>// DROP A MODEL FILE TO VISUALIZE</p>
             
             <div className={styles.formats}>
-              <span className={styles.formatBadge} data-supported="true">.nn3d</span>
               <span className={styles.formatBadge} data-supported="true">.onnx</span>
-              <span className={styles.formatBadge} data-supported="true">.safetensors</span>
-              <span className={styles.formatBadge} data-supported="partial">.pt/.pth</span>
-              <span className={styles.formatBadge} data-supported="partial">.h5</span>
+              <span className={styles.formatBadge} data-supported="true">.pt/.pth</span>
+              <span className={styles.formatBadge} data-supported="true">.h5</span>
+              <span className={styles.formatBadge} data-supported="true">.pb</span>
             </div>
             
             <label className={styles.uploadButton}>
@@ -238,7 +236,7 @@ export function DropZone({ children }: DropZoneProps) {
             </label>
             
             <p className={styles.hint}>
-              SUPPORTS: ONNX | SAFETENSORS | PYTORCH | KERAS
+              SUPPORTS: ONNX | PYTORCH | KERAS | TF
             </p>
             
             <div className={styles.features}>

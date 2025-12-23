@@ -2,13 +2,11 @@ import type { NN3DModel, NN3DNode, NN3DEdge } from '@/schema/types';
 import { parseNN3DModel, validateModelSemantics } from '@/schema/validator';
 import { 
   detectFormatFromExtension, 
-  detectFormatFromContent,
   isSupportedExtension,
   getFormatDisplayName,
   SUPPORTED_EXTENSIONS,
 } from './formats';
 import { OnnxParser } from './formats/onnx-parser';
-import { SafeTensorsParser } from './formats/safetensors-parser';
 import { PyTorchParser } from './formats/pytorch-parser';
 import { KerasParser } from './formats/keras-parser';
 import { 
@@ -18,6 +16,13 @@ import {
   type LayerInfo 
 } from './api-client';
 
+
+// Instantiate parsers
+const FORMAT_PARSERS = [
+  OnnxParser,
+  PyTorchParser,
+  KerasParser,
+];
 
 /**
  * All supported file extensions
@@ -33,14 +38,19 @@ let backendAvailable: boolean | null = null;
  * Check if backend is available (cached)
  */
 async function checkBackend(): Promise<boolean> {
-  if (backendAvailable === null) {
-    backendAvailable = await isBackendAvailable();
-    if (backendAvailable) {
-      console.log('[NN3D] Python backend available - using enhanced model analysis');
-    } else {
-      console.log('[NN3D] Python backend unavailable - using JavaScript parsers');
-    }
+  if (backendAvailable === true) {
+    return true;
   }
+
+  const available = await isBackendAvailable();
+  
+  if (available && !backendAvailable) {
+    console.log('[NN3D] Python backend available - using enhanced model analysis');
+  } else if (!available && backendAvailable !== false) {
+    console.log('[NN3D] Python backend unavailable - using JavaScript parsers');
+  }
+  
+  backendAvailable = available;
   return backendAvailable;
 }
 
@@ -215,28 +225,20 @@ function architectureToNN3DModel(arch: ModelArchitecture): NN3DModel {
 }
 
 /**
- * Registered format parsers (fallback)
- */
-const FORMAT_PARSERS = [
-  OnnxParser,
-  SafeTensorsParser,
-  PyTorchParser,
-  KerasParser,
-];
-
-/**
  * All model extensions that can be analyzed by the universal backend endpoint
  */
-const BACKEND_SUPPORTED_EXTENSIONS = [
-  '.pt', '.pth', '.ckpt', '.bin', '.model',  // PyTorch
-  '.onnx',                                    // ONNX  
-  '.h5', '.hdf5', '.keras',                   // Keras
-  '.pb',                                      // TensorFlow
-  '.safetensors'                              // SafeTensors
+const BACKEND_ONLY_EXTENSIONS = [
+  '.pt', '.pth', '.ckpt',  // PyTorch
+  '.h5', '.hdf5',          // Keras
+  '.pb',                   // TensorFlow
+];
+
+const CLIENT_FIRST_EXTENSIONS = [
+  '.onnx',          // Tier 1: Platinum Path
 ];
 
 /**
- * Load model from file - auto-detects format
+ * Load model from file - auto-detects format with 4-Tier Pipeline
  */
 export async function loadModelFromFile(file: File): Promise<NN3DModel> {
   // Check if extension is supported
@@ -250,65 +252,97 @@ export async function loadModelFromFile(file: File): Promise<NN3DModel> {
   
   // Detect format
   const formatInfo = detectFormatFromExtension(file.name);
-  const category = await detectFormatFromContent(file);
   const ext = '.' + file.name.split('.').pop()?.toLowerCase();
   
-  // Handle native NN3D/JSON format
-  if (formatInfo.category === 'native' || category === 'native') {
-    const text = await file.text();
-    return parseModelFromString(text);
+  // =========================================================================
+  // Tier 1: Client-Side Priority (ONNX)
+  // =========================================================================
+  
+  if (CLIENT_FIRST_EXTENSIONS.includes(ext)) {
+    console.log(`[Tier 1/2] Attempting client-side parsing for ${ext}...`);
+    for (const parser of FORMAT_PARSERS) {
+      if (await parser.canParse(file)) {
+        try {
+          const result = await parser.parse(file);
+          if (result.success && result.model) {
+            // Log success
+            console.log(`[OK] Client-side parsing complete for ${ext}`);
+            if (result.inferredStructure) {
+               console.info('Note: Structure inferred from heuristics.');
+            }
+            return result.model;
+          }
+        } catch (err) {
+          console.warn(`Client-side parser failed for ${ext}, trying backend fallback...`, err);
+        }
+      }
+    }
   }
   
-  // Try universal backend endpoint for all supported model formats
-  if (BACKEND_SUPPORTED_EXTENSIONS.includes(ext)) {
+  // =========================================================================
+  // Tier 3 & 4: Backend Required (.pt, .h5, etc) OR Fallback
+  // =========================================================================
+  
+  // Check if we should use backend (either it's a backend-only format, or client-side failed)
+  const shouldTryBackend = BACKEND_ONLY_EXTENSIONS.includes(ext) || CLIENT_FIRST_EXTENSIONS.includes(ext);
+  
+  if (shouldTryBackend) {
     const hasBackend = await checkBackend();
+    
     if (hasBackend) {
       try {
-        console.log(`Analyzing ${ext} model with universal backend endpoint...`);
+        console.log(`[Tier 3/4] Analyzing ${ext} model with universal backend endpoint...`);
         const result = await analyzeUniversal(file);
         
         if (result.success) {
-          console.log(`[OK] Backend analysis complete: ${result.model_type}`);
-          console.log(`  Layers: ${result.architecture.layers.length}`);
-          console.log(`  Parameters: ${result.architecture.totalParameters.toLocaleString()}`);
+          console.log('[OK] Backend analysis complete:', result.model_type);
+          console.log('[NN3D] Backend Response:', result);
+          
+          // Convert to NN3DModel
+          const model = architectureToNN3DModel(result.architecture);
+          
+          // Attach backend messages/warnings to metadata for UI
           if (result.message) {
-            console.info(result.message);
+            model.metadata.description += `\n\n[Analysis Info]: ${result.message}`;
           }
-          return architectureToNN3DModel(result.architecture);
-        } else {
-          console.warn('Backend returned unsuccessful result');
-        }
+          if (result.model_type === 'state_dict') {
+             // Mark as weights-only for the layout engine to use Matrix/Grid view
+             model.metadata.tags = [...(model.metadata.tags || []), 'weights-only'];
+          }
+          
+          console.log('[NN3D] Converted Model:', model);
+          return model;
+        } 
       } catch (error) {
-        console.warn('Backend analysis failed, falling back to JS parser:', error);
+        console.warn('Backend analysis failed:', error);
+        if (BACKEND_ONLY_EXTENSIONS.includes(ext)) {
+            throw new Error(`Backend analysis failed for ${ext}: ${(error as Error).message}`);
+        }
       }
+    } else if (BACKEND_ONLY_EXTENSIONS.includes(ext)) {
+        throw new Error(
+            `The file ${file.name} requires the Python backend service to be running.\n` +
+            `Please start the backend server to analyze ${ext} files.`
+        );
     }
   }
   
-  // Try format-specific parsers (fallback)
+  // =========================================================================
+  // Final Fallback: Try remaining JS parsers (e.g. Keras if implemented client-side)
+  // =========================================================================
   for (const parser of FORMAT_PARSERS) {
-    if (await parser.canParse(file)) {
-      const result = await parser.parse(file);
-      
-      if (result.success && result.model) {
-        // Log any warnings
-        if (result.warnings.length > 0) {
-          console.warn('Model loading warnings:', result.warnings);
-        }
-        
-        if (result.inferredStructure) {
-          console.info('Model structure was inferred from weights. Some details may be approximate.');
-        }
-        
-        return result.model;
-      } else if (result.error) {
-        throw new Error(result.error);
-      }
-    }
+     // Skip if we already tried it in Tier 1/2 block
+     if (CLIENT_FIRST_EXTENSIONS.includes(ext)) continue;
+
+     if (await parser.canParse(file)) {
+        const result = await parser.parse(file);
+        if (result.success && result.model) return result.model;
+     }
   }
   
-  // Fallback error
+  // Failure
   throw new Error(
-    `Unable to parse ${getFormatDisplayName(formatInfo.category)} file.\n\n` +
+    `Unable to parse ${getFormatDisplayName(formatInfo.category)} file.\n` +
     (formatInfo.conversionHint || 'Please convert to .nn3d or .onnx format.')
   );
 }

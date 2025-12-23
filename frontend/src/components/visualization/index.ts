@@ -10,7 +10,7 @@ export type { NeuralVisualizerProps, ModelArchitectureData } from './NeuralVisua
 
 // Architecture scene (VGG-style 3D visualization)
 export { ArchScene } from './ArchScene';
-export type { ArchSceneProps, CameraView } from './ArchScene';
+export type { ArchSceneProps } from './ArchScene';
 
 // Legacy components (kept for reference)
 // export { NeuralScene } from './NeuralScene';

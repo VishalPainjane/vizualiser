@@ -22,6 +22,7 @@ function App() {
   const architecture = model ? {
     name: model.metadata?.name || 'Model',
     framework: model.metadata?.framework || 'Unknown',
+    tags: model.metadata?.tags,
     totalParameters: model.metadata?.totalParams || 0,
     trainableParameters: model.metadata?.trainableParams,
     inputShape: model.metadata?.inputShape as number[] | null || null,
@@ -112,6 +113,7 @@ function App() {
           architecture={architecture}
           isLoading={isLoading}
           error={error}
+          warning={model?.metadata?.warning}
           onLayerSelect={handleLayerSelect}
           onUploadNew={handleUploadNew}
           onLoadSavedModel={handleLoadSavedModel}

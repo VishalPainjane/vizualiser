@@ -8,21 +8,13 @@ import type { NN3DModel } from '@/schema/types';
  * Supported model file extensions
  */
 export const SUPPORTED_EXTENSIONS = [
-  '.nn3d',      // Native format
-  '.json',      // JSON (may be nn3d or other)
   '.onnx',      // ONNX models
   '.pt',        // PyTorch model
   '.pth',       // PyTorch checkpoint
   '.ckpt',      // Checkpoint (multi-framework)
-  '.safetensors', // SafeTensors format
   '.h5',        // Keras/TensorFlow HDF5
   '.hdf5',      // HDF5 format
-  '.bin',       // Binary weights
-  '.pkl',       // Pickle
-  '.pickle',    // Pickle
-  '.joblib',    // Joblib
-  '.model',     // Generic model
-  '.weights',   // Raw weights
+  '.pb',        // TensorFlow SavedModel
 ] as const;
 
 export type SupportedExtension = typeof SUPPORTED_EXTENSIONS[number];

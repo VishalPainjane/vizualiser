@@ -72,6 +72,10 @@ export interface ArchitectureLayout {
   totalLayers: number;
   modelName: string;
   isLinear: boolean;
+  cameraSuggestion?: {
+    position: { x: number; y: number; z: number };
+    target: { x: number; y: number; z: number };
+  };
 }
 
 // ============================================================================
@@ -260,6 +264,73 @@ export function inferShapeFromParams(
   return { height, width, channels };
 }
 
+/**
+ * Calculate dimensions based on weight parameters for Bronze Path
+ */
+function calculateWeightDimensions(layer: any): { width: number; height: number; depth: number } {
+  const params = layer.params || {};
+  const category = layer.category.toLowerCase();
+  
+  // Default sizes
+  let height = LAYOUT_CONFIG.defaultBlockHeight;
+  let width = LAYOUT_CONFIG.defaultBlockWidth;
+  let depth = LAYOUT_CONFIG.defaultBlockDepth;
+  
+  // Scaling factor for visualization
+  const logScale = (val: number) => Math.log2(val + 1);
+
+  if (category === 'convolution') {
+    // Conv: [Out, In, kH, kW]
+    // Height ~ Out Channels
+    // Depth ~ In Channels
+    // Width ~ Kernel Size
+    const outCh = params.out_channels || params.outChannels || params.filters;
+    const inCh = params.in_channels || params.inChannels;
+    const kSize = params.kernel_size || params.kernelSize;
+    
+    if (outCh) height = Math.max(1, logScale(outCh));
+    if (inCh) depth = Math.max(1, logScale(inCh));
+    if (kSize) {
+      const kVal = Array.isArray(kSize) ? kSize[0] : kSize;
+      width = Math.max(0.5, kVal * 0.5); 
+    }
+  } else if (category === 'linear' || layer.type.toLowerCase().includes('linear')) {
+    // Linear: [Out, In]
+    // Height ~ Out Features
+    // Depth ~ In Features
+    // Width ~ Thin
+    const outFeat = params.out_features || params.outFeatures || params.units;
+    const inFeat = params.in_features || params.inFeatures;
+    
+    if (outFeat) height = Math.max(1, logScale(outFeat));
+    if (inFeat) depth = Math.max(1, logScale(inFeat));
+    width = 0.4; // Thin plate
+  } else if (category === 'embedding') {
+    // Embedding: [NumEmbed, Dim]
+    // Height ~ Num Embeddings
+    // Depth ~ Embedding Dim
+    const num = params.num_embeddings || params.numEmbeddings || params.input_dim;
+    const dim = params.embedding_dim || params.embeddingDim || params.output_dim;
+    
+    if (num) height = Math.max(1, logScale(num));
+    if (dim) depth = Math.max(1, logScale(dim));
+    width = 0.8;
+  } else if (category === 'normalization') {
+    // BatchNorm: [NumFeatures]
+    // Height ~ Num Features
+    // Depth ~ Num Features (Same)
+    const num = params.num_features || params.numFeatures;
+    if (num) {
+        const s = Math.max(1, logScale(num));
+        height = s;
+        depth = s;
+    }
+    width = 0.2; // Thin slice
+  }
+
+  return { width, height, depth };
+}
+
 // ============================================================================
 // Layout Calculation
 // ============================================================================
@@ -280,6 +351,14 @@ const LAYOUT_CONFIG = {
   maxSpatialSize: 8.0,     // Max spatial size for large feature maps
   maxChannelSize: 6.0,     // Max channel size for deep networks (increased)
   
+  // Default sizes for shape-less (Bronze Path) layouts
+  defaultBlockHeight: 2.0,
+  defaultBlockWidth: 2.0,
+  defaultBlockDepth: 2.0,
+  ghostBlockHeight: 1.5,
+  ghostBlockWidth: 1.5,
+  ghostBlockDepth: 1.5,
+
   // Pooling layer thickness (thinner)
   poolingThickness: 0.3,
   activationThickness: 0.15,
@@ -412,6 +491,7 @@ function isSkipConnection(
   return Math.abs(to.depth - from.depth) > 1;
 }
 
+
 /**
  * Compute 3D layout for architecture visualization
  * Handles both linear (sequential) and non-linear (branching) architectures
@@ -420,6 +500,7 @@ export function computeArchitectureLayout(
   architecture: {
     name: string;
     framework: string;
+    tags?: string[];
     totalParameters: number;
     inputShape?: number[] | null;
     outputShape?: number[] | null;
@@ -436,203 +517,202 @@ export function computeArchitectureLayout(
     connections: Array<{
       source: string;
       target: string;
+      attributes?: Record<string, unknown>;
     }>;
   }
 ): ArchitectureLayout {
   const blocks: LayerBlock[] = [];
   const connections: ArchitectureLayout['connections'] = [];
   
-  // Build graph to analyze topology
-  const graph = buildGraph(architecture.layers, architecture.connections);
-  const isLinear = isLinearArchitecture(graph);
-  
-  // Track shapes for each node
-  const shapeMap = new Map<string, TensorShape>();
-  const defaultShape = parseTensorShape(architecture.inputShape) || { height: 224, width: 224, channels: 3 };
-  
-  // Track block counter per category for naming
-  const blockCounter: Record<string, number> = {};
-  
-  // Track cumulative X position (since blocks have different widths)
-  let currentX = 0;
-  const positionXMap = new Map<number, number>(); // depth -> X position
-  
+  // Bronze Path Check: If explicit 'weights-only' tag exists OR missing shape data
+  const isBronzePath = architecture.tags?.includes('weights-only') || (
+    architecture.layers.length > 0 && 
+    architecture.layers.slice(0, 3).every(l => !l.outputShape && !l.inputShape)
+  );
+    
+  if (isBronzePath) {
+    console.log('[Layout] Bronze Path detected: Using simple sequential layout due to missing shape info.');
+  }
+
   // Track bounds
-  let minX = Infinity, maxX = -Infinity;
-  let minY = Infinity, maxY = -Infinity;
-  let minZ = Infinity, maxZ = -Infinity;
+  let minX = 0, maxX = 0;
+  let minY = 0, maxY = 0;
+  let minZ = 0, maxZ = 0;
   
-  // Process each layer
-  architecture.layers.forEach((layer) => {
-    const category = layer.category.toLowerCase();
-    const type = layer.type.toLowerCase();
-    const graphNode = graph.get(layer.id)!;
+  // --- BRONZE PATH: Matrix/Grid Layout (Weights Only) ---
+  if (isBronzePath) {
+    console.log('[Layout] Generating Matrix Layout for Weights Only (Bronze Path)');
     
-    // Parse shapes
-    let inputShape = parseTensorShape(layer.inputShape);
-    let outputShape = parseTensorShape(layer.outputShape);
+    // Grid configuration
+    const cols = Math.ceil(Math.sqrt(architecture.layers.length));
+    const spacing = 2.5;
     
-    // Get parent shape if available
-    let parentShape: TensorShape | null = null;
-    if (graphNode.parents.length > 0) {
-      parentShape = shapeMap.get(graphNode.parents[0]) || null;
-    }
-    
-    // If shapes not provided, infer from params
-    if (!inputShape) {
-      inputShape = parentShape || { ...defaultShape };
-    }
-    if (!outputShape) {
-      outputShape = inferShapeFromParams(layer, inputShape);
-    }
-    
-    // Store output shape for children
-    shapeMap.set(layer.id, outputShape);
-    
-    // Calculate 3D dimensions based on tensor shape
-    // The block represents a 3D tensor: H × W × C
-    // HEIGHT (Y-axis) = spatial frame height
-    // WIDTH (X-axis) = channels (stacked frames, going left-to-right)
-    // DEPTH (Z-axis) = layer thickness (thin slice)
-    const spatialH = outputShape.height;
-    const spatialW = outputShape.width;
-    const channels = outputShape.channels;
-    
-    // Spatial size → Block Height (frame size, forms square with itself visually)
-    const spatialScale = Math.sqrt(Math.max(spatialH, spatialW)) * LAYOUT_CONFIG.spatialScale * 5;
-    let blockHeight = Math.min(
-      LAYOUT_CONFIG.maxSpatialSize,
-      Math.max(LAYOUT_CONFIG.minBlockSize, spatialScale)
-    );
-    
-    // Channels → Block Width (stacked frames going along X-axis)
-    // Cap channels at 512 for visual scaling to avoid huge blocks
-    const cappedChannels = Math.min(channels, 512);
-    let blockWidth = Math.min(
-      LAYOUT_CONFIG.maxChannelSize,
-      Math.max(LAYOUT_CONFIG.minBlockSize * 0.3, Math.sqrt(cappedChannels) * LAYOUT_CONFIG.channelScale * 5)
-    );
-    
-    // Layer thickness → Block Depth (thin slice in Z)
-    let blockDepth = blockHeight; // Same as height for square face when viewed from side
-    
-    // Special handling for Flatten layers - compact transition block
-    if (type.includes('flatten')) {
-      // Flatten is a transition - show as a thin vertical bar
-      blockHeight = LAYOUT_CONFIG.minBlockSize * 2;
-      blockWidth = LAYOUT_CONFIG.minBlockSize * 0.4;
-      blockDepth = blockHeight;
-    }
-    // Make linear/dense/FC layers appear as vertical bars proportional to units
-    else if (category === 'linear' || type.includes('dense') || type.includes('linear') || type.includes('fc')) {
-      // Height scales with number of units (log scale to keep manageable)
-      const units = Math.min(channels, 4096); // Cap for visualization
-      blockHeight = Math.min(
-        LAYOUT_CONFIG.maxSpatialSize,
-        Math.max(LAYOUT_CONFIG.minBlockSize * 1.5, Math.log2(units + 1) * 0.4)
-      );
-      blockWidth = LAYOUT_CONFIG.minBlockSize * 0.5; // Thin width
-      blockDepth = LAYOUT_CONFIG.minBlockSize * 0.5; // Thin depth - appears as vertical bar
-    }
-    // Pooling layers - inherit parent's width (channels don't change)
-    else if (category === 'pooling') {
-      const parentBlock = blocks.find(b => graphNode.parents.includes(b.id));
-      if (parentBlock) {
-        blockWidth = parentBlock.dimensions.width;
+    architecture.layers.forEach((layer, index) => {
+      const isGhost = layer.params?.ghost === true;
+      const category = layer.category.toLowerCase();
+
+      // Calculate dimensions from weights if available, else use defaults
+      let { width: blockWidth, height: blockHeight, depth: blockDepth } = calculateWeightDimensions(layer);
+      
+      if (isGhost) {
+          blockWidth *= 0.7;
+          blockHeight *= 0.7;
+          blockDepth *= 0.7;
       }
-    } 
-    // Activation/norm layers - thinner version of parent
-    else if (category === 'activation' || category === 'normalization') {
-      const parentBlock = blocks.find(b => graphNode.parents.includes(b.id));
-      if (parentBlock) {
-        blockWidth = parentBlock.dimensions.width * 0.5;
+
+      // Calculate grid position
+      const row = Math.floor(index / cols);
+      const col = index % cols;
+      
+      const posX = (col - cols / 2) * spacing;
+      const posZ = (row - cols / 2) * spacing; // Spread on Z (ground plane)
+      const posY = 0;
+      
+      const block: LayerBlock = {
+        id: layer.id,
+        name: layer.name,
+        displayName: layer.name.split('.').pop() || layer.name,
+        type: layer.type,
+        category,
+        depth: row, 
+        branchIndex: col,
+        inputShape: null,
+        outputShape: null,
+        position: { x: posX, y: posY, z: posZ },
+        dimensions: { width: blockWidth, height: blockHeight, depth: blockDepth },
+        color: getArchColor(category, layer.type),
+        opacity: isGhost ? 0.6 : 1.0,
+        params: layer.params,
+        numParameters: layer.numParameters,
+        label: layer.name.split('.').pop() || layer.name,
+        dimensionLabel: '',
+      };
+      blocks.push(block);
+      
+      // Update bounds
+      minX = Math.min(minX, posX - blockWidth / 2);
+      maxX = Math.max(maxX, posX + blockWidth / 2);
+      minY = Math.min(minY, posY - blockHeight / 2);
+      maxY = Math.max(maxY, posY + blockHeight / 2);
+      minZ = Math.min(minZ, posZ - blockDepth / 2);
+      maxZ = Math.max(maxZ, posZ + blockDepth / 2);
+    });
+
+  } else {
+    // --- SILVER/GOLD/PLATINUM PATH: Shape-based Layout ---
+    const graph = buildGraph(architecture.layers, architecture.connections);
+    const shapeMap = new Map<string, TensorShape>();
+    const defaultShape = parseTensorShape(architecture.inputShape) || { height: 224, width: 224, channels: 3 };
+    const blockCounter: Record<string, number> = {};
+    let currentX = 0;
+    const positionXMap = new Map<number, number>();
+
+    minX = Infinity; maxX = -Infinity;
+    minY = Infinity; maxY = -Infinity;
+    minZ = Infinity; maxZ = -Infinity;
+
+    architecture.layers.forEach((layer) => {
+      const category = layer.category.toLowerCase();
+      const type = layer.type.toLowerCase();
+      const graphNode = graph.get(layer.id)!;
+      
+      let inputShape = parseTensorShape(layer.inputShape);
+      let outputShape = parseTensorShape(layer.outputShape);
+      
+      let parentShape: TensorShape | null = null;
+      if (graphNode.parents.length > 0) {
+        parentShape = shapeMap.get(graphNode.parents[0]) || null;
       }
-    }
-    
-    // Generate display name
-    if (!blockCounter[category]) blockCounter[category] = 0;
-    blockCounter[category]++;
-    
-    let displayName = layer.name;
-    if (type.includes('conv')) {
-      displayName = `Conv-${blockCounter[category]}`;
-    } else if (type.includes('pool')) {
-      displayName = `Pool`;
-    } else if (type.includes('dense') || type.includes('linear')) {
-      displayName = `FC-${blockCounter[category]}`;
-    } else if (type.includes('flatten')) {
-      displayName = 'Flatten';
-    } else if (type.includes('add') || type.includes('concat')) {
-      displayName = type.includes('add') ? '⊕ Add' : '⊕ Concat';
-    } else if (type.includes('attention')) {
-      displayName = 'Attention';
-    }
-    
-    // Format dimension label
-    let dimensionLabel = '';
-    if (outputShape.height > 1) {
-      dimensionLabel = `${outputShape.height}×${outputShape.width}×${outputShape.channels}`;
-    } else {
-      dimensionLabel = `${outputShape.channels}`;
-    }
-    
-    // Calculate position based on graph topology
-    // Use cumulative X position to account for varying block widths
-    if (!positionXMap.has(graphNode.depth)) {
-      positionXMap.set(graphNode.depth, currentX);
-      currentX += blockWidth + LAYOUT_CONFIG.layerSpacing;
-    }
-    const posX = positionXMap.get(graphNode.depth)!;
-    const posY = graphNode.branchIndex * LAYOUT_CONFIG.branchSpacing;
-    const posZ = 0;
-    
-    // Create block
-    const block: LayerBlock = {
-      id: layer.id,
-      name: layer.name,
-      displayName,
-      type: layer.type,
-      category,
-      depth: graphNode.depth,
-      branchIndex: graphNode.branchIndex,
-      inputShape,
-      outputShape,
-      position: {
-        x: posX,
-        y: posY,
-        z: posZ,
-      },
-      dimensions: {
-        width: blockWidth,
-        height: blockHeight,
-        depth: blockDepth,
-      },
-      color: getArchColor(category, layer.type),
-      opacity: 1.0,
-      params: layer.params,
-      numParameters: layer.numParameters,
-      label: displayName,
-      dimensionLabel,
-    };
-    
-    blocks.push(block);
-    
-    // Update bounds
-    minX = Math.min(minX, posX - blockWidth / 2);
-    maxX = Math.max(maxX, posX + blockWidth / 2);
-    minY = Math.min(minY, posY - blockHeight / 2);
-    maxY = Math.max(maxY, posY + blockHeight / 2);
-    minZ = Math.min(minZ, posZ - blockDepth / 2);
-    maxZ = Math.max(maxZ, posZ + blockDepth / 2);
-  });
-  
-  // Build connections with skip connection detection
+      
+      if (!inputShape) inputShape = parentShape || { ...defaultShape };
+      if (!outputShape) outputShape = inferShapeFromParams(layer, inputShape);
+      
+      shapeMap.set(layer.id, outputShape);
+
+      const spatialH = outputShape.height;
+      const spatialW = outputShape.width;
+      const channels = outputShape.channels;
+      
+      const spatialScale = Math.sqrt(Math.max(spatialH, spatialW)) * LAYOUT_CONFIG.spatialScale * 5;
+      let blockHeight = Math.min(LAYOUT_CONFIG.maxSpatialSize, Math.max(LAYOUT_CONFIG.minBlockSize, spatialScale));
+      
+      const cappedChannels = Math.min(channels, 512);
+      let blockWidth = Math.min(LAYOUT_CONFIG.maxChannelSize, Math.max(LAYOUT_CONFIG.minBlockSize * 0.3, Math.sqrt(cappedChannels) * LAYOUT_CONFIG.channelScale * 5));
+      
+      let blockDepth = blockHeight;
+
+      if (type.includes('flatten')) {
+        blockHeight = LAYOUT_CONFIG.minBlockSize * 2;
+        blockWidth = LAYOUT_CONFIG.minBlockSize * 0.4;
+        blockDepth = blockHeight;
+      } else if (category === 'linear' || type.includes('dense') || type.includes('fc')) {
+        const units = Math.min(channels, 4096);
+        blockHeight = Math.min(LAYOUT_CONFIG.maxSpatialSize, Math.max(LAYOUT_CONFIG.minBlockSize * 1.5, Math.log2(units + 1) * 0.4));
+        blockWidth = LAYOUT_CONFIG.minBlockSize * 0.5;
+        blockDepth = LAYOUT_CONFIG.minBlockSize * 0.5;
+      }
+
+      if (!blockCounter[category]) blockCounter[category] = 0;
+      blockCounter[category]++;
+      
+      let displayName = layer.name;
+      // Simplified display name logic
+      displayName = layer.name.split('.').pop() || layer.name;
+
+      let dimensionLabel = '';
+      if (outputShape.height > 1) {
+          dimensionLabel = `${outputShape.height}×${outputShape.width}×${outputShape.channels}`;
+      } else {
+          dimensionLabel = `${outputShape.channels}`;
+      }
+
+      if (!positionXMap.has(graphNode.depth)) {
+        positionXMap.set(graphNode.depth, currentX);
+        currentX += blockWidth + LAYOUT_CONFIG.layerSpacing;
+      }
+      const posX = positionXMap.get(graphNode.depth)!;
+      const posY = graphNode.branchIndex * LAYOUT_CONFIG.branchSpacing;
+      const posZ = 0;
+      
+      const block: LayerBlock = {
+        id: layer.id,
+        name: layer.name,
+        displayName,
+        type: layer.type,
+        category,
+        depth: graphNode.depth,
+        branchIndex: graphNode.branchIndex,
+        inputShape,
+        outputShape,
+        position: { x: posX, y: posY, z: posZ },
+        dimensions: { width: blockWidth, height: blockHeight, depth: blockDepth },
+        color: getArchColor(category, layer.type),
+        opacity: 1.0,
+        params: layer.params,
+        numParameters: layer.numParameters,
+        label: displayName,
+        dimensionLabel,
+      };
+      blocks.push(block);
+      
+      minX = Math.min(minX, posX - blockWidth / 2);
+      maxX = Math.max(maxX, posX + blockWidth / 2);
+      minY = Math.min(minY, posY - blockHeight / 2);
+      maxY = Math.max(maxY, posY + blockHeight / 2);
+      minZ = Math.min(minZ, posZ - blockDepth / 2);
+      maxZ = Math.max(maxZ, posZ + blockDepth / 2);
+    });
+  }
+
+  // Build connections for all paths
   architecture.connections.forEach(conn => {
     const fromBlock = blocks.find(b => b.id === conn.source);
     const toBlock = blocks.find(b => b.id === conn.target);
     
     if (fromBlock && toBlock) {
-      const isSkip = isSkipConnection(conn.source, conn.target, graph);
+      const isImplicit = conn.attributes?.implicit === true;
+      const graph = buildGraph(architecture.layers, architecture.connections); // Rebuild or pass graph
+      const isSkip = isImplicit || isSkipConnection(conn.source, conn.target, graph);
       
       connections.push({
         from: conn.source,
@@ -651,19 +731,30 @@ export function computeArchitectureLayout(
       });
     }
   });
-  
-  // Handle empty model
-  if (blocks.length === 0) {
-    minX = 0; maxX = 1;
-    minY = -1; maxY = 1;
-    minZ = -1; maxZ = 1;
-  }
-  
-  // Calculate center
+
   const center = {
     x: (minX + maxX) / 2,
     y: (minY + maxY) / 2,
     z: (minZ + maxZ) / 2,
+  };
+
+  // Calculate camera distance based on bounds size
+  const sizeX = maxX - minX;
+  const sizeY = maxY - minY;
+  const sizeZ = maxZ - minZ;
+  const maxDim = Math.max(sizeX, sizeY, sizeZ);
+  
+  // Basic heuristic: distance ~ maxDim
+  // Ensure a minimum distance so we don't start inside a small model
+  const cameraDistance = Math.max(20, maxDim * 0.8 + 10);
+  
+  const cameraSuggestion = {
+    position: { 
+      x: isBronzePath ? 0 : 0, 
+      y: isBronzePath ? cameraDistance * 0.8 : cameraDistance * 0.2, 
+      z: isBronzePath ? cameraDistance * 0.6 : cameraDistance 
+    },
+    target: { x: 0, y: 0, z: 0 } // Since we center the scene at 0,0,0
   };
   
   return {
@@ -673,9 +764,11 @@ export function computeArchitectureLayout(
     center,
     totalLayers: architecture.layers.length,
     modelName: architecture.name,
-    isLinear,
+    isLinear: isBronzePath || isLinearArchitecture(buildGraph(architecture.layers, architecture.connections)),
+    cameraSuggestion,
   };
 }
+
 
 /**
  * Group consecutive layers of same category into "stages"
