@@ -52,6 +52,7 @@ class AnalysisRequest(BaseModel):
 
 class AnalysisResponse(BaseModel):
     """Response model for analysis results."""
+    model_config = {"protected_namespaces": ()}
     success: bool
     model_type: str
     architecture: dict
@@ -389,13 +390,15 @@ async def upload_model(
     try:
         print(f"INFO: Received file: {filename} ({file_ext})", flush=True)
         
-        # Save uploaded file temporarily
+        # Save uploaded file temporarily and calculate hash
+        content = await file.read()
+        file_hash = hashlib.sha256(content).hexdigest()
+        
         with tempfile.NamedTemporaryFile(delete=False, suffix=file_ext) as temp_file:
-            content = await file.read()
             temp_file.write(content)
             temp_path = temp_file.name
         
-        print(f"INFO: Saved temp file to {temp_path}", flush=True)
+        print(f"INFO: Saved temp file to {temp_path} (hash: {file_hash[:8]}...)", flush=True)
         
         result = None
         
@@ -434,10 +437,26 @@ async def upload_model(
                 detail=f"Unsupported file format '{file_ext}'. Supported formats: {supported}"
             )
             
-        if result:
+        if result and result.success:
             layer_count = len(result.architecture.get('layers', []))
             conn_count = len(result.architecture.get('connections', []))
             print(f"INFO: Analysis complete. Type={result.model_type}, Layers={layer_count}, Connections={conn_count}", flush=True)
+            
+            # Auto-save to database
+            try:
+                model_id = db.save_model(
+                    name=result.architecture.get('name', filename),
+                    framework=result.architecture.get('framework', 'unknown'),
+                    total_parameters=result.architecture.get('totalParameters', 0),
+                    layer_count=layer_count,
+                    architecture=result.architecture,
+                    file_hash=file_hash
+                )
+                print(f"INFO: Model auto-saved to database with ID: {model_id}", flush=True)
+            except Exception as e:
+                print(f"ERROR: Failed to auto-save model: {e}", flush=True)
+                # Don't fail the whole request if saving fails
+            
             if layer_count == 0:
                 print("WARNING: Model analyzed but 0 layers found!", flush=True)
             
@@ -471,48 +490,192 @@ async def analyze_universal(
 
 
 async def _analyze_nn3d(file_path: str, filename: str) -> AnalysisResponse:
+
+
     """Analyze NN3D/JSON native format."""
+
+
     import json
+
+
     try:
+
+
         with open(file_path, 'r', encoding='utf-8') as f:
+
+
             data = json.load(f)
+
+
         
+
+
         # Basic validation: Check if it looks like NN3D
+
+
         if 'graph' not in data or 'nodes' not in data.get('graph', {}):
+
+
             raise ValueError("Invalid NN3D format: Missing 'graph.nodes'")
+
+
             
+
+
         # Extract metadata
+
+
         metadata = data.get('metadata', {})
+
+
+        
+
+
+        # Convert NN3D nodes to layers for consistency in Saved Models
+
+
+        layers = []
+
+
+        for node in data['graph']['nodes']:
+
+
+            layers.append({
+
+
+                'id': node['id'],
+
+
+                'name': node.get('name', node['id']),
+
+
+                'type': node['type'],
+
+
+                'category': node.get('attributes', {}).get('category', 'other'),
+
+
+                'inputShape': node.get('inputShape'),
+
+
+                'outputShape': node.get('outputShape'),
+
+
+                'params': node.get('params', {}),
+
+
+                'numParameters': node.get('attributes', {}).get('parameters', 0),
+
+
+                'trainable': True
+
+
+            })
+
+
+            
+
+
+        # Convert NN3D edges to connections
+
+
+        connections = []
+
+
+        for i, edge in enumerate(data['graph'].get('edges', [])):
+
+
+            connections.append({
+
+
+                'source': edge['source'],
+
+
+                'target': edge['target'],
+
+
+                'tensorShape': edge.get('attributes', {}).get('tensorShape'),
+
+
+                'attributes': edge.get('attributes', {})
+
+
+            })
+
+
+
+
+
         architecture = {
+
+
             'name': metadata.get('name', Path(filename).stem),
+
+
             'framework': metadata.get('framework', 'nn3d'),
+
+
             'totalParameters': metadata.get('totalParams', 0),
+
+
             'trainableParameters': metadata.get('trainableParams', 0),
+
+
             'inputShape': metadata.get('inputShape'),
+
+
             'outputShape': metadata.get('outputShape'),
-            'layers': [], # We don't need to convert back to "layers" for NN3D files, 
-                          # but AnalysisResponse expects 'architecture'. 
-                          # Ideally, the frontend just uses the file directly.
-            'connections': []
+
+
+            'layers': layers,
+
+
+            'connections': connections
+
+
         }
+
+
         
-        # If we need to populate layers for consistency (though frontend might ignore it if it just wants the file back)
-        # But actually, if the user uploaded NN3D, they probably want it validated or re-served.
-        # For now, we'll return a success message and the raw architecture if possible, 
-        # or just the metadata.
-        
+
+
         return AnalysisResponse(
+
+
             success=True,
+
+
             model_type='nn3d',
-            architecture=architecture, # Returning minimal arch as we don't need to reverse-engineer NN3D
+
+
+            architecture=architecture,
+
+
             message="Valid NN3D model (Platinum Path)"
+
+
         )
+
+
     except Exception as e:
+
+
+        traceback.print_exc()
+
+
         raise HTTPException(status_code=400, detail=f"Invalid NN3D file: {str(e)}")
 
 
 
+
+
+
+
+
 async def _analyze_pytorch(file_path: str, filename: str, sample_shape: Optional[List[int]] = None) -> AnalysisResponse:
+
+
+
     """Analyze PyTorch model."""
     model, state_dict, model_type, warning = load_pytorch_model(file_path)
     model_name = Path(filename).stem
@@ -571,6 +734,24 @@ async def _analyze_onnx(file_path: str, filename: str) -> AnalysisResponse:
         weight_shapes[init.name] = dims
         total_params += int(torch.prod(torch.tensor(dims)).item()) if dims else 0
     
+    # Map tensor names to shapes from value_info, input, and output
+    tensor_shapes = {}
+    
+    # Inputs (skip weights)
+    for val in graph.input:
+        if val.name not in weight_shapes and val.type.tensor_type.shape.dim:
+            tensor_shapes[val.name] = [d.dim_value if d.dim_value > 0 else -1 for d in val.type.tensor_type.shape.dim]
+            
+    # Outputs
+    for val in graph.output:
+        if val.type.tensor_type.shape.dim:
+            tensor_shapes[val.name] = [d.dim_value if d.dim_value > 0 else -1 for d in val.type.tensor_type.shape.dim]
+            
+    # Value Info (Intermediate)
+    for val in graph.value_info:
+        if val.type.tensor_type.shape.dim:
+            tensor_shapes[val.name] = [d.dim_value if d.dim_value > 0 else -1 for d in val.type.tensor_type.shape.dim]
+
     # Process nodes
     for i, node in enumerate(graph.node):
         layer_id = f"layer_{i}"
@@ -599,9 +780,19 @@ async def _analyze_onnx(file_path: str, filename: str) -> AnalysisResponse:
                 layer_params += int(torch.prod(torch.tensor(weight_shapes[inp_name])).item())
                 input_shapes.append(weight_shapes[inp_name])
         
-        # Infer input/output shapes from value_info
+        # Infer input/output shapes from tensor_shapes
         input_shape = None
+        # Find first non-weight input that has a shape
+        for inp_name in node.input:
+            if inp_name in tensor_shapes:
+                input_shape = tensor_shapes[inp_name]
+                break
+        
         output_shape = None
+        if node.output:
+            out_name = node.output[0]
+            if out_name in tensor_shapes:
+                output_shape = tensor_shapes[out_name]
         
         layers.append({
             'id': layer_id,
